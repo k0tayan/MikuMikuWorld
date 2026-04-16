@@ -28,4 +28,4 @@ CMake 3.21+ と Xcode コマンドラインツールが必要です。GLFW と z
 
 
 ## スクリーンショット：
-![ミクワ](https://github.com/crash5band/MikuMikuWorld/assets/44091782/c56ec0d3-f50e-4944-94ca-a13a973d075a)
+![ミクワ](./docs/screenshot.png)

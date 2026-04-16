@@ -27,4 +27,4 @@ Requires CMake 3.21+ and Xcode command-line tools. GLFW and zlib are fetched aut
 User data (config, layout, presets, auto-saves) is stored under `~/Library/Application Support/MikuMikuWorld/`.
 
 ## Screenshot:
-![MikuMikuWorld](https://github.com/crash5band/MikuMikuWorld/assets/44091782/ba9dbcdf-fa77-4b44-b5e3-2858a283fce0)
+![MikuMikuWorld](./docs/screenshot.png)
