@@ -42,6 +42,7 @@ namespace MikuMikuWorld
 
 		static std::string version;
 		static std::string appDir;
+		static std::string userDataDir;
 
 		Result initOpenGL();
 
@@ -51,7 +52,7 @@ namespace MikuMikuWorld
 
 		Application();
 
-		Result initialize(const std::string& root);
+		Result initialize(const std::string& root, const std::string& userData);
 		void run();
 		void update();
 		void appendOpenFile(const std::string& filename);
@@ -67,6 +68,7 @@ namespace MikuMikuWorld
 		GLFWwindow* getGlfwWindow() { return window; }
 
 		static const std::string& getAppDir();
+		static const std::string& getUserDataDir();
 		static const std::string& getAppVersion();
 	};
 }

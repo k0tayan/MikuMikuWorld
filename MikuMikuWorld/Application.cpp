@@ -15,6 +15,7 @@ namespace MikuMikuWorld
 {
 	std::string Application::version{ APP_VERSION_STRING };
 	std::string Application::appDir{ "" };
+	std::string Application::userDataDir{ "" };
 	std::string Application::pendingLoadScoreFile{ "" };
 	WindowState Application::windowState{};
 
@@ -23,16 +24,17 @@ namespace MikuMikuWorld
 	{
 	}
 
-	Result Application::initialize(const std::string& root)
+	Result Application::initialize(const std::string& root, const std::string& userData)
 	{
 		if (initialized)
 			return Result(ResultStatus::Success, "App is already initialized");
 
 		appDir = root;
+		userDataDir = userData;
 		version = APP_VERSION_STRING;
 		language = "";
 
-		config.read(appDir + APP_CONFIG_FILENAME);
+		config.read(userDataDir + APP_CONFIG_FILENAME);
 		readSettings();
 
 		Result result = initOpenGL();
@@ -62,6 +64,11 @@ namespace MikuMikuWorld
 	const std::string& Application::getAppDir()
 	{
 		return appDir;
+	}
+
+	const std::string& Application::getUserDataDir()
+	{
+		return userDataDir;
 	}
 
 	const std::string& Application::getAppVersion()
@@ -103,7 +110,7 @@ namespace MikuMikuWorld
 		if (editor)
 		{
 			editor->writeSettings();
-			config.write(appDir + APP_CONFIG_FILENAME);
+			config.write(userDataDir + APP_CONFIG_FILENAME);
 		}
 	}
 

@@ -3,6 +3,7 @@
 #include "UI.h"
 #include <GLFW/glfw3.h>
 #include <mach-o/dyld.h>
+#include <cstdlib>
 #include <filesystem>
 
 namespace mmw = MikuMikuWorld;
@@ -31,6 +32,18 @@ static std::string getExecutableDir()
 	return exePath.parent_path().string() + "/";
 }
 
+static std::string getUserDataDir()
+{
+	const char* home = std::getenv("HOME");
+	if (!home || !*home)
+		return {};
+
+	std::filesystem::path dir = std::filesystem::path(home) / "Library" / "Application Support" / "MikuMikuWorld";
+	std::error_code ec;
+	std::filesystem::create_directories(dir, ec);
+	return dir.string() + "/";
+}
+
 static void dropCallback(GLFWwindow*, int count, const char** paths)
 {
 	for (int i = 0; i < count; ++i)
@@ -41,7 +54,7 @@ int main(int argc, char** argv)
 {
 	try
 	{
-		mmw::Result result = app.initialize(getExecutableDir());
+		mmw::Result result = app.initialize(getExecutableDir(), getUserDataDir());
 
 		if (!result.isOk())
 			throw std::runtime_error(result.getMessage().c_str());
