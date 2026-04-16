@@ -364,4 +364,10 @@ FodyWeavers.xsd
 
 MikuMikuWorld/imgui_config.ini
 
+# CMake / Xcode build artifacts (macOS port)
+build/
+.DS_Store
+*.xcodeproj/
+*.xcworkspace/
+
 .vscode
