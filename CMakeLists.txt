@@ -141,9 +141,15 @@ set(DEPS_SOURCES
 # ---------------------------------------------------------------------------
 # Executable (.app bundle)
 # ---------------------------------------------------------------------------
+set(MMW_ICON_FILE ${MMW_SRC_DIR}/res/mmw_icon.icns)
+set_source_files_properties(${MMW_ICON_FILE} PROPERTIES
+    MACOSX_PACKAGE_LOCATION "Resources"
+)
+
 add_executable(MikuMikuWorld MACOSX_BUNDLE
     ${MMW_SOURCES}
     ${DEPS_SOURCES}
+    ${MMW_ICON_FILE}
 )
 
 target_include_directories(MikuMikuWorld PRIVATE
@@ -188,6 +194,8 @@ set_target_properties(MikuMikuWorld PROPERTIES
     MACOSX_BUNDLE_BUNDLE_VERSION         "${PROJECT_VERSION}"
     MACOSX_BUNDLE_SHORT_VERSION_STRING   "${PROJECT_VERSION}"
     MACOSX_BUNDLE_COPYRIGHT              "Copyright (c) crash5band"
+    MACOSX_BUNDLE_ICON_FILE              "mmw_icon.icns"
+    MACOSX_BUNDLE_INFO_PLIST             "${MMW_SRC_DIR}/Platform/Cocoa/Info.plist.in"
 )
 
 # Copy res/ into the bundle's Resources directory on every build. The bundle
