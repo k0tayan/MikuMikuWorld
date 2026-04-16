@@ -11,14 +11,20 @@ A chart editor and viewer for the mobile rhythm game Project Sekai Colorful Stag
 - Customizable keyboard shortcuts.
 
 ## Requirements:
-- 64-bit Windows 10 or higher*.
-- [Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe).
-- GPU supporting OpenGL 3.3 with latest drivers installed.
+- macOS 10.14 or later.
+- GPU supporting OpenGL 3.3.
 
-*Earlier versions of Windows may work but not tested.
+> This fork is macOS-only. Windows support was dropped during the Cocoa port.
 
-## Download:
-The latest version can be downloaded [here](https://github.com/crash5band/MikuMikuWorld/releases/latest/download/MikuMikuWorld.zip).
+## Build from source:
+```bash
+cmake -S . -B build
+cmake --build build
+open build/MikuMikuWorld.app
+```
+Requires CMake 3.21+ and Xcode command-line tools. GLFW and zlib are fetched automatically via `FetchContent`.
+
+User data (config, layout, presets, auto-saves) is stored under `~/Library/Application Support/MikuMikuWorld/`.
 
 ## Screenshot:
 ![MikuMikuWorld](https://github.com/crash5band/MikuMikuWorld/assets/44091782/ba9dbcdf-fa77-4b44-b5e3-2858a283fce0)

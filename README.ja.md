@@ -4,11 +4,20 @@
 プロセカ用の譜面エディタ・譜面ビューアー。
 
 ## 必要な環境：
-- 64bitのWindows 10以上¹
-- [Microsoft Visual C++再頒布可能](https://aka.ms/vs/17/release/vc_redist.x64.exe)
-- GPU対応のOpenGL 3.3と最新のドライバ
+- macOS 10.14 以降
+- OpenGL 3.3 対応の GPU
 
-1：古いバージョンでも動くかもしれませんが、動作確認はされていません。
+> 本フォークは macOS 専用です。Cocoa 移植に伴い Windows サポートは終了しました。
+
+## ソースからビルド：
+```bash
+cmake -S . -B build
+cmake --build build
+open build/MikuMikuWorld.app
+```
+CMake 3.21+ と Xcode コマンドラインツールが必要です。GLFW と zlib は `FetchContent` で自動取得されます。
+
+ユーザーデータ（設定・レイアウト・プリセット・オートセーブ）は `~/Library/Application Support/MikuMikuWorld/` に保存されます。
 
 ## 機能一覧：
 - Sliding Universal Score（\*.sus）ファイルの入出力。
@@ -17,8 +26,6 @@
 - ノーツプリセットの作成・使用。
 - カスタマイズ可能なキーボードショートカット。
 
-## ダウンロード：
-最新版は[ここ](https://github.com/crash5band/MikuMikuWorld/releases/latest/download/MikuMikuWorld.zip)からダウンロードできます。
 
 ## スクリーンショット：
 ![ミクワ](https://github.com/crash5band/MikuMikuWorld/assets/44091782/c56ec0d3-f50e-4944-94ca-a13a973d075a)

@@ -62,15 +62,20 @@ macOS の Cocoa / AppKit / Foundation を前提とする:
 `.app` バンドル内は読み取り専用が前提（Gatekeeper / 署名の制約）。書き込みデータは `~/Library/Application Support/MikuMikuWorld/` に置く:
 
 - `app_config.json`（設定）
-- `imgui.ini`（ImGui レイアウト）
+- `imgui_config.ini`（ImGui レイアウト）
 - `library/`（プリセット）
-- オートセーブ
+- `auto_save/`（オートセーブ）
 
-一方、リソース（シェーダ、テクスチャ、フォント、翻訳）は `.app/Contents/Resources/` から読み取る。`Application::getAppDir()` 相当は「リソース読み取り基点」と「データ書き込み基点」の 2 つに分離されている。
+リソース（シェーダ、テクスチャ、フォント、翻訳）は `.app/Contents/Resources/` から読み取る。ディレクトリ基点は 2 つに分離されている:
+
+- `Application::getAppDir()` — リソース読み取り基点（`.app/Contents/Resources/`）
+- `Application::getUserDataDir()` — 書き込み可能なユーザーデータ基点（`~/Library/Application Support/MikuMikuWorld/`）
+
+`main.cpp` が両者を解決して `Application::initialize(resourceDir, userDataDir)` に渡す。ユーザーデータディレクトリは初回起動時に自動作成される。
 
 ## 全体アーキテクチャ
 
-エントリポイント: `main.cpp` が標準 `int main(int argc, char** argv)` でグローバルの `Application app` を生成し、`initialize(dir)` を呼び、CLI 引数のファイルを `appendOpenFile` でキューに入れ、`run()` を実行する。未捕捉の例外時には保存を促し、設定を書き出してから終了する。
+エントリポイント: `main.cpp` が標準 `int main(int argc, char** argv)` でグローバルの `Application app` を生成し、`initialize(resourceDir, userDataDir)` を呼び、CLI 引数のファイルを `appendOpenFile` でキューに入れ、`run()` を実行する。未捕捉の例外時には保存を促し、設定を書き出してから終了する。
 
 所有関係:
 
@@ -102,6 +107,8 @@ Application
 ## リソース
 
 `MikuMikuWorld/res/`（`editor`、`effect`、`fonts`、`i18n`、`notes`、`shaders`、`sound`）は実行時に必須の資源。シェーダ、テクスチャ、フォント、翻訳を追加する際はここに配置すれば、ポストビルドで `.app/Contents/Resources/` へコピーされる。
+
+バンドルアイコン（`res/mmw_icon.icns`）と `Info.plist` のテンプレート（`MikuMikuWorld/Platform/Cocoa/Info.plist.in`）も CMake が `.app` に組み込む。`.icns` は `res/mmw_icon.png` から `iconutil` で生成されたもの。
 
 パスセパレータは全コードベースを通じて `/` を使用する（`\\` のハードコードはしない）。
 
