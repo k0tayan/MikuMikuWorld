@@ -1,19 +1,12 @@
 #pragma once
-#define NOMINMAX
-#include <Windows.h>
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
-
 #include "ScoreEditor.h"
 #include "ImGuiManager.h"
-
-LRESULT CALLBACK wndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 namespace MikuMikuWorld
 {
@@ -28,12 +21,9 @@ namespace MikuMikuWorld
 		bool closing = false;
 		bool shouldPickScore = false;
 		bool dragDropHandled = true;
-		bool windowDragging = false;
 		bool fullScreen = false;
-		void* windowHandle{ 0 };
 		Vector2 position{};
 		Vector2 size{};
-		UINT_PTR windowTimerId{};
 	};
 
 	class Application
@@ -54,7 +44,6 @@ namespace MikuMikuWorld
 		static std::string appDir;
 
 		Result initOpenGL();
-		std::string getVersion();
 
 	public:
 		static WindowState windowState;

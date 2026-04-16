@@ -1,7 +1,7 @@
 #pragma once
 #include <array>
 #include <memory>
-#include "Math.h"
+#include "MathUtils.h"
 #include "Score.h"
 #include "Rendering/Texture.h"
 #include "Rendering/Sprite.h"

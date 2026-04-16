@@ -48,9 +48,6 @@ namespace IO
 	std::string trim(const std::string& line);
 	std::vector<std::string> split(const std::string& line, const std::string& delim);
 
-	std::string wideStringToMb(const std::wstring& str);
-	std::wstring mbToWideStr(const std::string& str);
-
 	std::string concat(const char* s1, const char* s2, const char* join = "");
 
 	std::vector<uint8_t> inflateGzip(const std::vector<uint8_t>& data);

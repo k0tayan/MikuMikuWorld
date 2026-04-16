@@ -1,7 +1,7 @@
 #include "Jacket.h"
 #include "ResourceManager.h"
 #include "File.h"
-#include "Math.h"
+#include "MathUtils.h"
 #include <algorithm>
 
 namespace MikuMikuWorld

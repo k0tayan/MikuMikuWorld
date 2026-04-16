@@ -379,11 +379,10 @@ namespace MikuMikuWorld
 	int ResourceManager::loadParticleEffect(const std::string& filename)
 	{
 		std::string effectName = IO::File::getFilenameWithoutExtension(filename);
-		std::wstring wFilename = IO::mbToWideStr(filename);
-				
+
 		try
 		{
-			std::ifstream particleFile(wFilename);
+			std::ifstream particleFile(filename);
 			particleFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 
 			json effectJson{};

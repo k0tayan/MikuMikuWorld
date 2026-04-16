@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include "Math.h"
+#include "MathUtils.h"
 #include "MinMax.h"
 #include "Utilities.h"
 #include "DirectXMath.h"

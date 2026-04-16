@@ -290,6 +290,20 @@ InputBinding FromSerializedString(std::string string)
 
 namespace ImGui
 {
+	// On macOS, shortcuts are stored as Ctrl+... (cross-platform config) but the
+	// user actually presses Cmd. Remap Ctrl→Super at input-check time.
+	static int remapModifiersForPlatform(int mods)
+	{
+#ifdef __APPLE__
+		if (mods & ImGuiMod_Ctrl)
+		{
+			mods &= ~ImGuiMod_Ctrl;
+			mods |= ImGuiMod_Super;
+		}
+#endif
+		return mods;
+	}
+
 	bool TestModifiers(ImGuiKey mods)
 	{
 		return ImGui::GetIO().KeyMods == mods;
@@ -297,12 +311,14 @@ namespace ImGui
 
 	bool IsDown(const InputBinding& binding)
 	{
-		return ImGui::TestModifiers((ImGuiKey)binding.keyModifiers) && ImGui::IsKeyDown((ImGuiKey)binding.keyCode);
+		const ImGuiKey mods = (ImGuiKey)remapModifiersForPlatform(binding.keyModifiers);
+		return ImGui::TestModifiers(mods) && ImGui::IsKeyDown((ImGuiKey)binding.keyCode);
 	}
 
 	bool IsPressed(const InputBinding& binding, bool repeat)
 	{
-		return ImGui::TestModifiers((ImGuiKey)binding.keyModifiers) && ImGui::IsKeyPressed((ImGuiKey)binding.keyCode, repeat);
+		const ImGuiKey mods = (ImGuiKey)remapModifiersForPlatform(binding.keyModifiers);
+		return ImGui::TestModifiers(mods) && ImGui::IsKeyPressed((ImGuiKey)binding.keyCode, repeat);
 	}
 
 	bool IsAnyDown(const MultiInputBinding& bindings)

@@ -78,7 +78,7 @@ set(MMW_SOURCES
     ${MMW_SRC_DIR}/JsonIO.cpp
     ${MMW_SRC_DIR}/Language.cpp
     ${MMW_SRC_DIR}/Localization.cpp
-    ${MMW_SRC_DIR}/Math.cpp
+    ${MMW_SRC_DIR}/MathUtils.cpp
     ${MMW_SRC_DIR}/MinMax.cpp
     ${MMW_SRC_DIR}/NativeScoreSerializer.cpp
     ${MMW_SRC_DIR}/Note.cpp
@@ -113,6 +113,10 @@ set(MMW_SOURCES
     ${MMW_SRC_DIR}/Audio/AudioManager.cpp
     ${MMW_SRC_DIR}/Audio/Sound.cpp
 
+    ${MMW_SRC_DIR}/Platform/Cocoa/MessageBox.mm
+    ${MMW_SRC_DIR}/Platform/Cocoa/FileDialog.mm
+    ${MMW_SRC_DIR}/Platform/Cocoa/Locale.mm
+
     ${MMW_SRC_DIR}/Rendering/Camera.cpp
     ${MMW_SRC_DIR}/Rendering/Framebuffer.cpp
     ${MMW_SRC_DIR}/Rendering/Renderer.cpp
@@ -144,6 +148,7 @@ add_executable(MikuMikuWorld MACOSX_BUNDLE
 
 target_include_directories(MikuMikuWorld PRIVATE
     ${MMW_SRC_DIR}
+    ${MMW_SRC_DIR}/Platform/Stubs
     ${DEPS_DIR}/DirectXMath-master/Inc
     ${DEPS_DIR}/glad/include
     ${DEPS_DIR}/stb_image
@@ -191,7 +196,7 @@ set_target_properties(MikuMikuWorld PROPERTIES
 add_custom_command(TARGET MikuMikuWorld POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${MMW_SRC_DIR}/res
-        $<TARGET_BUNDLE_CONTENT_DIR:MikuMikuWorld>/Resources
+        $<TARGET_BUNDLE_CONTENT_DIR:MikuMikuWorld>/Resources/res
     COMMENT "Copying res/ into .app bundle"
     VERBATIM
 )

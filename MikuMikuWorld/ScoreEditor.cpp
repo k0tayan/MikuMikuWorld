@@ -8,7 +8,6 @@
 #include "NativeScoreSerializer.h"
 #include "ScoreSerializeWindow.h"
 #include <filesystem>
-#include <Windows.h>
 
 namespace MikuMikuWorld
 {
@@ -137,7 +136,7 @@ namespace MikuMikuWorld
 
 		if (settingsWindow.isBackgroundChangePending)
 		{
-			static const std::string defaultBackgroundPath = Application::getAppDir() + "res\\editor\\default.png";
+			static const std::string defaultBackgroundPath = Application::getAppDir() + "res/editor/default.png";
 			timeline.background.load(config.backgroundImage.empty() ? defaultBackgroundPath : config.backgroundImage);
 			settingsWindow.isBackgroundChangePending = false;
 		}
@@ -308,7 +307,7 @@ namespace MikuMikuWorld
 				result.getMessage().c_str()
 			);
 
-			IO::messageBox(APP_NAME, errorMessage, IO::MessageBoxButtons::Ok, IO::MessageBoxIcon::Error, Application::windowState.windowHandle);
+			IO::messageBox(APP_NAME, errorMessage, IO::MessageBoxButtons::Ok, IO::MessageBoxIcon::Error);
 		}
 		
 		context.waveformL.generateMipChainsFromSampleBuffer(context.audio.musicBuffer, 0);
@@ -338,7 +337,6 @@ namespace MikuMikuWorld
 	void ScoreEditor::open()
 	{
 		IO::FileDialog fileDialog{};
-		fileDialog.parentWindowHandle = Application::windowState.windowHandle;
 		fileDialog.title = "Open Chart";
 		fileDialog.filters = {
 			IO::combineFilters("All Supported Files",{ IO::mmwsFilter, IO::susFilter }),
@@ -373,8 +371,7 @@ namespace MikuMikuWorld
 				APP_NAME,
 				IO::formatString("%s\n%s: %s", getString("error_save_score_file"), getString("error"), err.what()),
 				IO::MessageBoxButtons::Ok,
-				IO::MessageBoxIcon::Error,
-				Application::windowState.windowHandle
+				IO::MessageBoxIcon::Error
 			);
 
 			return false;
@@ -389,7 +386,6 @@ namespace MikuMikuWorld
 		fileDialog.title = "Save Chart";
 		fileDialog.filters = { IO::mmwsFilter };
 		fileDialog.defaultExtension = "mmws";
-		fileDialog.parentWindowHandle = Application::windowState.windowHandle;
 		fileDialog.inputFilename = IO::File::getFilenameWithoutExtension(context.workingData.filename);
 
 		if (fileDialog.saveFile() == IO::FileDialogResult::OK)
@@ -546,7 +542,7 @@ namespace MikuMikuWorld
 			{
 				if (!std::filesystem::exists(presetManager.getPresetsPath()))
 					std::filesystem::create_directory(presetManager.getPresetsPath());
-				ShellExecuteW(0, 0, presetManager.getPresetsPath().data(), 0, 0, SW_SHOW);
+				std::system(("open \"" + std::string(presetManager.getPresetsPath()) + "\"").c_str());
 			}
 			
 			ImGui::EndMenu();
@@ -697,39 +693,37 @@ namespace MikuMikuWorld
 
 	void ScoreEditor::help()
 	{
-		ShellExecuteW(0, 0, L"https://github.com/crash5band/MikuMikuWorld/wiki", 0, 0, SW_SHOW);
+		std::system("open \"https://github.com/crash5band/MikuMikuWorld/wiki\"");
 	}
 
 	void ScoreEditor::autoSave()
 	{
-		std::wstring wAutoSaveDir = IO::mbToWideStr(autoSavePath);
-		std::filesystem::create_directory(wAutoSaveDir);
+		std::filesystem::create_directory(autoSavePath);
 
 		context.score.metadata = context.workingData.toScoreMetadata();
-		NativeScoreSerializer().serialize(context.score, autoSavePath + "\\mmw_auto_save_" + Utilities::getCurrentDateTime() + MMWS_EXTENSION);
-		
+		NativeScoreSerializer().serialize(context.score, autoSavePath + "/mmw_auto_save_" + Utilities::getCurrentDateTime() + MMWS_EXTENSION);
+
 		int mmwsCount = 0;
-		for (const auto& file : std::filesystem::directory_iterator(wAutoSaveDir))
+		for (const auto& file : std::filesystem::directory_iterator(autoSavePath))
 		{
 			std::string extension = file.path().extension().string();
 			std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
 			mmwsCount += static_cast<int>(extension == MMWS_EXTENSION);
 		}
-		
+
 		if (mmwsCount > config.autoSaveMaxCount)
 			deleteOldAutoSave(mmwsCount - config.autoSaveMaxCount);
 	}
 
 	int ScoreEditor::deleteOldAutoSave(int count)
 	{
-		std::wstring wAutoSaveDir = IO::mbToWideStr(autoSavePath);
-		if (!std::filesystem::exists(wAutoSaveDir))
+		if (!std::filesystem::exists(autoSavePath))
 			return 0;
 
 		// get mmws files
 		using entry = std::filesystem::directory_entry;
 		std::vector<entry> deleteFiles;
-		for (const auto& file : std::filesystem::directory_iterator(wAutoSaveDir))
+		for (const auto& file : std::filesystem::directory_iterator(autoSavePath))
 		{
 			std::string extension = file.path().extension().string();
 			std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
@@ -779,14 +773,14 @@ namespace MikuMikuWorld
 					IO::MessageBoxIcon::Error :
 					IO::MessageBoxIcon::Warning;
 			
-				IO::messageBox(APP_NAME, result.getMessage(), IO::MessageBoxButtons::Ok, icon, Application::windowState.windowHandle);
+				IO::messageBox(APP_NAME, result.getMessage(), IO::MessageBoxButtons::Ok, icon);
 			}
 		});
 	}
 
 	void ScoreEditor::openImportPresetDialog()
 	{
-		IO::FileDialog fileDialog{"Import Preset", { IO::presetFilter }, "", "", ".json", 0, Application::windowState.windowHandle};
+		IO::FileDialog fileDialog{"Import Preset", { IO::presetFilter }, "", "", ".json", nullptr};
 		if (fileDialog.openFile() == IO::FileDialogResult::OK)
 			importPreset(fileDialog.outputFilename);
 	}

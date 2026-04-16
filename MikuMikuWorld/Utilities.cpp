@@ -1,9 +1,8 @@
 #include "Utilities.h"
-#include "Math.h"
+#include "MathUtils.h"
 #include "ImGui/imgui.h"
 #include "Localization.h"
 #include "IO.h"
-#include <Windows.h>
 #include <ctime>
 
 namespace MikuMikuWorld
@@ -17,18 +16,6 @@ namespace MikuMikuWorld
 		strftime(buf, 128, "%Y-%m-%d-%H-%M-%S", &localTime);
 
 		return buf;
-	}
-
-	std::string Utilities::getSystemLocale()
-	{
-		LPWSTR lpLocalName = new WCHAR[LOCALE_NAME_MAX_LENGTH];
-		int result = GetUserDefaultLocaleName(lpLocalName, LOCALE_NAME_MAX_LENGTH);
-
-		std::wstring wL = lpLocalName;
-		wL = wL.substr(0, wL.find_first_of(L"-"));
-
-		delete[] lpLocalName;
-		return IO::wideStringToMb(wL);
 	}
 
 	std::string Utilities::getDivisionString(int div)

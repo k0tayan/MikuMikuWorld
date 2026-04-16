@@ -38,6 +38,7 @@ namespace MikuMikuWorld
 		io.ConfigDebugHighlightIdConflicts = false;
 		io.ConfigDpiScaleViewports = true;
 		io.ConfigDpiScaleFonts = true;
+		io.ConfigMacOSXBehaviors = true;
 		io.IniFilename = configFilename.c_str();
 
 		if (!ImGui_ImplGlfw_InitForOpenGL(window, true))

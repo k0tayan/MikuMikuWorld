@@ -26,7 +26,6 @@ namespace MikuMikuWorld
 
 	void Shader::compile(const std::string& source)
 	{
-		std::wstring wSource = mbToWideStr(source);
 		std::string vertexCode, fragmentCode;
 		std::ifstream vertexFile, fragmentFile;
 		vertexFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
@@ -34,8 +33,8 @@ namespace MikuMikuWorld
 
 		try
 		{
-			vertexFile.open(wSource + L".vert");
-			fragmentFile.open(wSource + L".frag");
+			vertexFile.open(source + ".vert");
+			fragmentFile.open(source + ".frag");
 
 			std::stringstream vertexStream, fragmnetStream;
 

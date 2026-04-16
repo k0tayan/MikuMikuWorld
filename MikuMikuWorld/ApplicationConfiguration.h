@@ -1,6 +1,6 @@
 #pragma once
 #include "UI.h"
-#include "Math.h"
+#include "MathUtils.h"
 #include "InputBinding.h"
 
 namespace MikuMikuWorld

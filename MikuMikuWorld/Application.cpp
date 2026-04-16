@@ -1,4 +1,4 @@
-﻿#include "Application.h"
+#include "Application.h"
 #include "ResourceManager.h"
 #include "IO.h"
 #include "Utilities.h"
@@ -7,14 +7,18 @@
 #include "ScoreSerializer.h"
 #include "NoteSkin.h"
 
+#ifndef APP_VERSION_STRING
+#define APP_VERSION_STRING "1.0.0"
+#endif
+
 namespace MikuMikuWorld
 {
-	std::string Application::version{ "1.0.0" };
+	std::string Application::version{ APP_VERSION_STRING };
 	std::string Application::appDir{ "" };
 	std::string Application::pendingLoadScoreFile{ "" };
 	WindowState Application::windowState{};
 
-	Application::Application() : 
+	Application::Application() :
 		initialized{ false }, language{ "" }
 	{
 	}
@@ -25,7 +29,7 @@ namespace MikuMikuWorld
 			return Result(ResultStatus::Success, "App is already initialized");
 
 		appDir = root;
-		version = getVersion();
+		version = APP_VERSION_STRING;
 		language = "";
 
 		config.read(appDir + APP_CONFIG_FILENAME);
@@ -58,43 +62,6 @@ namespace MikuMikuWorld
 	const std::string& Application::getAppDir()
 	{
 		return appDir;
-	}
-
-	std::string Application::getVersion()
-	{
-		wchar_t filename[1024];
-		lstrcpyW(filename, IO::mbToWideStr(std::string(appDir + "MikuMikuWorld.exe")).c_str());
-
-		DWORD  verHandle = 0;
-		UINT   size = 0;
-		LPBYTE lpBuffer = NULL;
-		DWORD  verSize = GetFileVersionInfoSizeW(filename, &verHandle);
-
-		int major = 0, minor = 0, build = 0, rev = 0;
-		if (verSize != NULL)
-		{
-			LPSTR verData = new char[verSize];
-
-			if (GetFileVersionInfoW(filename, verHandle, verSize, verData))
-			{
-				if (VerQueryValue(verData, TEXT("\\"), (VOID FAR * FAR*) & lpBuffer, &size))
-				{
-					if (size)
-					{
-						VS_FIXEDFILEINFO* verInfo = (VS_FIXEDFILEINFO*)lpBuffer;
-						if (verInfo->dwSignature == 0xfeef04bd)
-						{
-							major = (verInfo->dwFileVersionMS >> 16) & 0xffff;
-							minor = (verInfo->dwFileVersionMS >> 0) & 0xffff;
-							rev = (verInfo->dwFileVersionLS >> 16) & 0xffff;
-						}
-					}
-				}
-			}
-			delete[] verData;
-		}
-
-		return IO::formatString("%d.%d.%d", major, minor, rev);
 	}
 
 	const std::string& Application::getAppVersion()
@@ -183,7 +150,7 @@ namespace MikuMikuWorld
 		if (config.language != language)
 		{
 			std::string locale = config.language == "auto" ? Utilities::getSystemLocale() : config.language;
-			
+
 			// Try to set the selected language and fallback to default (en) on failure
 			if (!Localization::setLanguage(locale))
 				Localization::setLanguage("en");
@@ -318,34 +285,34 @@ namespace MikuMikuWorld
 
 	void Application::loadResources()
 	{
-		ResourceManager::loadShader(appDir + "res\\shaders\\basic2d");
-		ResourceManager::loadShader(appDir + "res\\shaders\\masking");
-		ResourceManager::loadShader(appDir + "res\\shaders\\particles");
+		ResourceManager::loadShader(appDir + "res/shaders/basic2d");
+		ResourceManager::loadShader(appDir + "res/shaders/masking");
+		ResourceManager::loadShader(appDir + "res/shaders/particles");
 
 		// TODO: Do not set the note skin texture indexes manually!
-		const std::string notes01TexDir = appDir + "res\\notes\\01\\";
+		const std::string notes01TexDir = appDir + "res/notes/01/";
 		ResourceManager::loadTexture(notes01TexDir + "notes.png");
 		ResourceManager::loadTexture(notes01TexDir + "longNoteLine.png");
 		ResourceManager::loadTexture(notes01TexDir + "touchLine_eff.png");
 		noteSkins.add("Notes 01", 0, 1, 2);
 
-		const std::string notes02TexDir = appDir + "res\\notes\\02\\";
+		const std::string notes02TexDir = appDir + "res/notes/02/";
 		ResourceManager::loadTexture(notes02TexDir + "notes.png");
 		ResourceManager::loadTexture(notes02TexDir + "longNoteLine.png");
 		ResourceManager::loadTexture(notes02TexDir + "touchLine_eff.png");
 		noteSkins.add("Notes 02", 3, 4, 5);
 
-		const std::string editorAssetsDir = appDir + "res\\editor\\";
+		const std::string editorAssetsDir = appDir + "res/editor/";
 		ResourceManager::loadTexture(editorAssetsDir + "timeline_tools.png");
 		ResourceManager::loadTexture(editorAssetsDir + "note_stats.png");
 		ResourceManager::loadTexture(editorAssetsDir + "stage.png");
 
-		ResourceManager::loadTransforms(appDir + "res\\effect\\transform.txt");
+		ResourceManager::loadTransforms(appDir + "res/effect/transform.txt");
 
 		// Load more languages here
 		Localization::loadDefault();
-		Localization::load("ja", u8"日本語", appDir + "res\\i18n\\ja.csv");
-		Localization::load("zh-tw", u8"繁體中文（台灣）", appDir + "res\\i18n\\zh-tw.csv");
+		Localization::load("ja", u8"日本語", appDir + "res/i18n/ja.csv");
+		Localization::load("zh-tw", u8"繁體中文（台灣）", appDir + "res/i18n/zh-tw.csv");
 	}
 
 	void Application::setFullScreen(bool fullScreen)
@@ -380,29 +347,12 @@ namespace MikuMikuWorld
 
 	void Application::run()
 	{
-		HWND hwnd = glfwGetWin32Window(window);
-
-		/*
-			Override the current GLFW/Imgui window procedure and store it in the GLFW window user pointer
-		
-			NOTE: For this to be safe, it should be only called AFTER ImGui is initialized
-			so that the WndProc ImGui is expecting matches with our own WndProc
-		*/
-		glfwSetWindowUserPointer(window, (void*)::GetWindowLongPtrW(hwnd, GWLP_WNDPROC));
-		::SetWindowLongPtrW(hwnd, GWLP_WNDPROC, (LONG_PTR)wndProc);
-
-		windowState.windowHandle = hwnd;
-		windowState.windowTimerId = ::SetTimer(hwnd,
-			reinterpret_cast<UINT_PTR>(&windowState.windowTimerId), USER_TIMER_MINIMUM, nullptr);
-
-		::DragAcceptFiles(hwnd, TRUE);
-
 		while (!glfwWindowShouldClose(window))
 		{
 			glfwPollEvents();
 			update();
 		}
-		
+
 		writeSettings();
 	}
 

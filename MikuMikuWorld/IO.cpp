@@ -1,49 +1,11 @@
 #include "IO.h"
-#include <Windows.h>
 #include <algorithm>
 #include <zlib.h>
 #include <sstream>
 #include <cassert>
 
-#undef min
-#undef max
-
 namespace IO
 {
-	MessageBoxResult messageBox(std::string title, std::string message, MessageBoxButtons buttons, MessageBoxIcon icon, void* parentWindow)
-	{
-		UINT flags = 0;
-		switch (icon)
-		{
-		case MessageBoxIcon::Information:	flags |= MB_ICONINFORMATION; break;
-		case MessageBoxIcon::Warning:		flags |= MB_ICONWARNING; break;
-		case MessageBoxIcon::Error:			flags |= MB_ICONERROR; break;
-		case MessageBoxIcon::Question:		flags |= MB_ICONQUESTION; break;
-		default: break;
-		}
-
-		switch (buttons)
-		{
-		case MessageBoxButtons::Ok:			flags |= MB_OK; break;
-		case MessageBoxButtons::OkCancel:	flags |= MB_OKCANCEL; break;
-		case MessageBoxButtons::YesNo:		flags |= MB_YESNO; break;
-		case MessageBoxButtons::YesNoCancel:flags |= MB_YESNOCANCEL; break;
-		default: break;
-		}
-
-		const int result = MessageBoxExW(reinterpret_cast<HWND>(parentWindow), mbToWideStr(message).c_str(), mbToWideStr(title).c_str(), flags, 0);
-		switch (result)
-		{
-		case IDABORT:	return MessageBoxResult::Abort;
-		case IDCANCEL:	return MessageBoxResult::Cancel;
-		case IDIGNORE:	return MessageBoxResult::Ignore;
-		case IDNO:		return MessageBoxResult::No;
-		case IDYES:		return MessageBoxResult::Yes;
-		case IDOK:		return MessageBoxResult::Ok;
-		default:		return MessageBoxResult::None;
-		}
-	}
-
 	char* reverse(char* str)
 	{
 		char* end = str;
@@ -112,7 +74,7 @@ namespace IO
 		if (str.empty())
 			return false;
 
-		return std::all_of(str.begin() + (str.at(0) == '-' ? 1 : 0), str.end(), std::isdigit);
+		return std::all_of(str.begin() + (str.at(0) == '-' ? 1 : 0), str.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)); });
 	}
 
 	std::string trim(const std::string& line)
@@ -141,24 +103,6 @@ namespace IO
 		}
 
 		return values;
-	}
-
-	std::string wideStringToMb(const std::wstring& str)
-	{
-		int size = WideCharToMultiByte(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0, NULL, NULL);
-		std::string result(size, 0);
-		WideCharToMultiByte(CP_UTF8, 0, &str[0], (int)str.size(), &result[0], size, NULL, NULL);
-
-		return result;
-	}
-
-	std::wstring mbToWideStr(const std::string& str)
-	{
-		int size = MultiByteToWideChar(CP_UTF8, 0, &str[0], str.size(), NULL, 0);
-		std::wstring wResult(size, 0);
-		MultiByteToWideChar(CP_UTF8, 0, &str[0], str.size(), &wResult[0], size);
-
-		return wResult;
 	}
 
 	std::string concat(const char* s1, const char* s2, const char* join)

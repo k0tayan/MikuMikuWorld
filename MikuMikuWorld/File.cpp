@@ -1,6 +1,5 @@
 #include "File.h"
 #include "IO.h"
-#include <Windows.h>
 #include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,12 +17,6 @@ namespace IO
 	FileDialogFilter allFilter{ "All Files", "*.*" };
 
 	File::File(const std::string& filename, FileMode mode)
-	{
-		stream = std::make_unique<std::fstream>();
-		open(filename, mode);
-	}
-
-	File::File(const std::wstring& filename, FileMode mode)
 	{
 		stream = std::make_unique<std::fstream>();
 		open(filename, mode);
@@ -55,19 +48,12 @@ namespace IO
 	void File::open(const std::string& filename, FileMode mode)
 	{
 		openFilename = filename;
-		open(IO::mbToWideStr(filename), mode);
-	}
-
-	void File::open(const std::wstring& filename, FileMode mode)
-	{
-		openFilenameW = filename;
 		stream->open(filename, getStreamMode(mode));
 	}
 
 	void File::close()
 	{
 		openFilename.clear();
-		openFilenameW.clear();
 		stream->close();
 	}
 
@@ -192,12 +178,6 @@ namespace IO
 		return filename.substr(0, end);
 	}
 
-	std::wstring File::getFullFilenameWithoutExtension(const std::wstring& filename)
-	{
-		size_t end = filename.find_last_of(L".");
-		return filename.substr(0, end);
-	}
-
 	std::string File::getFilepath(const std::string& filename)
 	{
 		size_t start = 0;
@@ -225,90 +205,12 @@ namespace IO
 
 	bool File::exists(const std::string& path)
 	{
-		std::wstring wPath = mbToWideStr(path);
-		return std::filesystem::exists(wPath);
+		return std::filesystem::exists(path);
 	}
 
 	bool File::hasFileExtension(const std::string_view& filename, const std::string_view& extension)
 	{
 		return endsWith(filename, extension);
-	}
-
-	FileDialogResult FileDialog::showFileDialog(DialogType type, DialogSelectType selectType)
-	{
-		std::wstring wTitle = mbToWideStr(title);
-
-		OPENFILENAMEW ofn;
-		memset(&ofn, 0, sizeof(ofn));
-		ofn.lStructSize = sizeof(ofn);
-		ofn.hwndOwner = reinterpret_cast<HWND>(parentWindowHandle);
-		ofn.lpstrTitle = wTitle.c_str();
-		ofn.nFilterIndex = filterIndex + 1;
-		ofn.nFileOffset = 0;
-		ofn.nMaxFile = MAX_PATH;
-		ofn.Flags = OFN_LONGNAMES | OFN_EXPLORER | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
-
-		std::wstring wDefaultExtension = mbToWideStr(defaultExtension);
-		ofn.lpstrDefExt = wDefaultExtension.c_str();
-
-		std::vector<std::wstring> ofnFilters;
-		ofnFilters.reserve(filters.size());
-
-		/*
-			since '\0' terminates the string,
-			we'll do a C# by using ' | ' then replacing it with '\0' when constructing the final wide string
-		*/
-		std::string filtersCombined;
-		for (const auto& filter : filters)
-		{
-			filtersCombined
-				.append(filter.filterName)
-				.append(" (")
-				.append(filter.filterType)
-				.append(")|")
-				.append(filter.filterType)
-				.append("|");
-		}
-
-		std::wstring wFiltersCombined = mbToWideStr(filtersCombined);
-		std::replace(wFiltersCombined.begin(), wFiltersCombined.end(), '|', '\0');
-		ofn.lpstrFilter = wFiltersCombined.c_str();
-
-		std::wstring wInputFilename = mbToWideStr(inputFilename);
-		wchar_t ofnFilename[1024]{ 0 };
-
-		// suppress return value not used warning
-#pragma warning(suppress: 6031)
-		lstrcpynW(ofnFilename, wInputFilename.c_str(), 1024);
-		ofn.lpstrFile = ofnFilename;
-
-		if (type == DialogType::Save)
-		{
-			ofn.Flags |= OFN_HIDEREADONLY;
-			if (GetSaveFileNameW(&ofn))
-			{
-				outputFilename = wideStringToMb(ofn.lpstrFile);
-			}
-			else
-			{
-				// user canceled
-				return FileDialogResult::Cancel;
-			}
-		}
-		else if (GetOpenFileNameW(&ofn))
-		{
-			outputFilename = wideStringToMb(ofn.lpstrFile);
-		}
-		else
-		{
-			return FileDialogResult::Cancel;
-		}
-
-		if (outputFilename.empty())
-			return FileDialogResult::Cancel;
-
-		filterIndex = ofn.nFilterIndex - 1;
-		return FileDialogResult::OK;
 	}
 
 	FileDialogResult FileDialog::openFile()

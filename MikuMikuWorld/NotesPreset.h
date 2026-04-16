@@ -27,13 +27,13 @@ namespace MikuMikuWorld
 		inline int getID() const { return ID; }
 
 		Result read(const std::string& filepath);
-		void write(std::filesystem::path filePath, bool overwrite);
+		void write(const std::string& filePath, bool overwrite);
 	};
 
 	class PresetManager
 	{
 	private:
-		std::filesystem::path presetsPath;
+		std::string presetsPath;
 		std::atomic<int> nextPresetID{1};
 		std::future<bool> createPresetFuture{};
 		std::future<bool> deletePresetFuture{};
@@ -42,12 +42,12 @@ namespace MikuMikuWorld
 
 	public:
 		PresetManager(const std::string& path);
-		
+
 		std::vector<NotesPreset> presets;
 		NotesPreset deletedPreset{};
 		size_t deletedPresetIndex{};
 
-		inline const std::wstring_view getPresetsPath() const { return presetsPath.c_str(); }
+		inline std::string_view getPresetsPath() const { return presetsPath; }
 		
 		void loadPresets();
 		Result importPreset(const std::string& path);

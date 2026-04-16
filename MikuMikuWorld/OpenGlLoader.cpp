@@ -82,9 +82,7 @@ namespace MikuMikuWorld
 		glfwSetWindowCloseCallback(window, windowCloseCallback);
 		glfwSetWindowMaximizeCallback(window, windowMaximizeCallback);
 
-		UI::setDarkMode(UI::isSystemDarkMode());
-
-		std::string iconFilename = appDir + "res\\mmw_icon.png";
+		std::string iconFilename = appDir + "res/mmw_icon.png";
 		if (IO::File::exists(iconFilename))
 		{
 			GLFWimage images[1]{};

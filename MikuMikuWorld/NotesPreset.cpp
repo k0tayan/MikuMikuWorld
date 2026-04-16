@@ -50,11 +50,10 @@ namespace MikuMikuWorld
 
 	Result NotesPreset::read(const std::string& filepath)
 	{
-		fs::path path{IO::mbToWideStr(filepath)};
-		if (!fs::exists(path))
+		if (!fs::exists(filepath))
 			return Result(ResultStatus::Error, "The preset file \"" + filepath + "\" does not exist.");
 
-		std::ifstream file(path);
+		std::ifstream file(filepath);
 		file >> data;
 		file.close();
 
@@ -80,34 +79,35 @@ namespace MikuMikuWorld
 			name = filename;
 			return Result(ResultStatus::Warning, "The preset \"" + filename + "\" does not have a name. Using filename instead.");
 		}
-		
+
 		return Result::Ok();
 	}
 
-	void NotesPreset::write(fs::path filepath, bool overwrite)
+	void NotesPreset::write(const std::string& filepath, bool overwrite)
 	{
-		std::wstring wFilename = IO::File::getFullFilenameWithoutExtension(filepath.wstring());
+		std::string base = IO::File::getFullFilenameWithoutExtension(filepath);
 		if (!overwrite)
 		{
 			int count = 1;
-			std::wstring suffix = L"";
+			std::string suffix;
 
-			while (fs::exists(wFilename + suffix + L".json"))
-				suffix = L"(" + std::to_wstring(count++) + L")";
+			while (fs::exists(base + suffix + ".json"))
+				suffix = "(" + std::to_string(count++) + ")";
 
-			wFilename += suffix;
+			base += suffix;
 		}
 
 		data["name"] = name;
 		data["description"] = description;
-		
-		std::ofstream file(fs::path(wFilename).replace_extension(L".json"));
+
+		std::string outPath = base + ".json";
+		std::ofstream file(outPath);
 		file.exceptions(std::ios::badbit | std::ios::failbit);
 		file << std::setw(2) << data;
 		file.flush();
 		file.close();
 
-		filename = IO::File::getFilename(IO::wideStringToMb(wFilename));
+		filename = IO::File::getFilename(outPath);
 	}
 
 	IO::MessageBoxResult PresetManager::showErrorMessage(const std::string& message)
@@ -116,12 +116,11 @@ namespace MikuMikuWorld
 			APP_NAME,
 			message,
 			IO::MessageBoxButtons::Ok,
-			IO::MessageBoxIcon::Error,
-			Application::windowState.windowHandle
+			IO::MessageBoxIcon::Error
 		);
 	}
 
-	PresetManager::PresetManager(const std::string& path) : presetsPath{ IO::mbToWideStr(path) }
+	PresetManager::PresetManager(const std::string& path) : presetsPath{ path }
 	{
 		fs::create_directory(presetsPath);
 	}
@@ -134,17 +133,18 @@ namespace MikuMikuWorld
 		std::vector<std::string> filenames;
 		for (const auto& file : std::filesystem::directory_iterator(presetsPath))
 		{
+			std::string stemFilename = file.path().filename().string();
 			// Ignore dot files
-			if (file.path().extension().wstring() == L".json" && file.path().wstring().at(0) != L'.')
-				filenames.push_back(IO::wideStringToMb(file.path().wstring()));
+			if (file.path().extension().string() == ".json" && !stemFilename.empty() && stemFilename.front() != '.')
+				filenames.push_back(file.path().string());
 		}
 
-		std::mutex m2;		
+		std::mutex m2;
 
 		std::vector<Result> warnings;
 		std::vector<Result> errors;
 
-		std::for_each(std::execution::seq, filenames.begin(), filenames.end(),
+		std::for_each(filenames.begin(), filenames.end(),
 			[this, &warnings, &errors, &m2](const auto& filename) {
 
 				int id = nextPresetID++;
@@ -175,8 +175,7 @@ namespace MikuMikuWorld
 			for (auto& error : errors)
 				message += "- " + error.getMessage() + "\n";
 
-			IO::messageBox(APP_NAME, message, IO::MessageBoxButtons::Ok,
-				IO::MessageBoxIcon::Error, Application::windowState.windowHandle);
+			IO::messageBox(APP_NAME, message, IO::MessageBoxButtons::Ok, IO::MessageBoxIcon::Error);
 		}
 
 		if (warnings.size())
@@ -185,30 +184,27 @@ namespace MikuMikuWorld
 			for (auto& warning : warnings)
 				message += "- " + warning.getMessage() + "\n";
 
-			IO::messageBox(APP_NAME, message, IO::MessageBoxButtons::Ok,
-				IO::MessageBoxIcon::Warning, Application::windowState.windowHandle);
+			IO::messageBox(APP_NAME, message, IO::MessageBoxButtons::Ok, IO::MessageBoxIcon::Warning);
 		}
 	}
 
 	Result PresetManager::importPreset(const std::string& path)
 	{
-		fs::path importPath{IO::mbToWideStr(path)};
-		if (!fs::exists(importPath))
+		if (!fs::exists(path))
 			return Result(ResultStatus::Error, IO::formatString("Error: File '%s' not found", path));
-		
+
 		int id = nextPresetID++;
 		NotesPreset preset = NotesPreset(id, "");
 		Result result = preset.read(path);
 
 		if (result.getStatus() == ResultStatus::Error)
 			return result;
-		
-		fs::path dir{IO::File::getFilepath(path)};
-		if (dir != presetsPath)
+
+		std::string dir = IO::File::getFilepath(path);
+		if (fs::path(dir) != fs::path(presetsPath))
 		{
 			try
 			{
-				std::wstring wFilename{ IO::mbToWideStr(IO::File::getFilenameWithoutExtension(path)) };
 				if (!savePreset(preset))
 				{
 					return Result(
@@ -222,7 +218,7 @@ namespace MikuMikuWorld
 				return Result(ResultStatus::Error, err.what());
 			}
 		}
-		
+
 		presets.emplace_back(std::move(preset));
 		return result;
 	}
@@ -255,7 +251,7 @@ namespace MikuMikuWorld
 		if (fs::exists(presetsPath) || fs::create_directory(presetsPath))
 		{
 			// Extension is added after determining final file name
-			preset.write(presetsPath / IO::mbToWideStr(fixFilename(preset.getName())), false);
+			preset.write(presetsPath + "/" + fixFilename(preset.getName()), false);
 			return true;
 		}
 
@@ -286,7 +282,7 @@ namespace MikuMikuWorld
 			deletePresetFuture = std::async(std::launch::async, [this, preset]() -> bool
 			{
 				deletedPreset = std::move(preset);
-				return fs::remove(presetsPath / IO::mbToWideStr(deletedPreset.getFilename()));
+				return fs::remove(presetsPath + "/" + deletedPreset.getFilename());
 			});
 
 			presets.erase(presets.begin() + index);
@@ -303,7 +299,7 @@ namespace MikuMikuWorld
 		{
 			try
 			{
-				deletedPreset.write(presetsPath / IO::mbToWideStr(deletedPreset.getFilename()), false);
+				deletedPreset.write(presetsPath + "/" + deletedPreset.getFilename(), false);
 				presets.insert(presets.begin() + deletedPresetIndex, std::move(deletedPreset));
 
 				deletedPreset = {};
@@ -314,10 +310,10 @@ namespace MikuMikuWorld
 				showErrorMessage(IO::formatString("An error occurred while restoring the deleted preset: %s", err.what()));
 			}
 		}
-		
+
 		return false;
 	}
-	
+
 	std::string PresetManager::fixFilename(const std::string& name)
 	{
 		std::string result = name;

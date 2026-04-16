@@ -2343,7 +2343,7 @@ namespace MikuMikuWorld
 		}
 
 		if (useDefaultBackground)
-			background.load(Application::getAppDir() + "res\\editor\\default.png");
+			background.load(Application::getAppDir() + "res/editor/default.png");
 		
 		background.setBrightness(0.67f);
 	}

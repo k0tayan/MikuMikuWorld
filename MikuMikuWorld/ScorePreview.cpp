@@ -69,7 +69,7 @@ namespace MikuMikuWorld
 		jacketFile = jacket.getFilename();
 		brightness = config.pvBackgroundBrightness;
 		bool useDefaultTexture = backgroundFile.empty() || !IO::File::exists(backgroundFile);
-		Texture backgroundTex = { useDefaultTexture ? Application::getAppDir() + "res\\editor\\default.png" : backgroundFile};
+		Texture backgroundTex = { useDefaultTexture ? Application::getAppDir() + "res/editor/default.png" : backgroundFile};
 		const float bgWidth = backgroundTex.getWidth(), bgHeight = backgroundTex.getHeight();
 		if (bgWidth != frameBuffer.getWidth() || bgHeight != frameBuffer.getHeight())
 			frameBuffer.resize(bgWidth, bgHeight);
@@ -441,8 +441,8 @@ namespace MikuMikuWorld
 	void ScorePreviewWindow::loadNoteEffects(Effect::EffectView& effectView)
 	{
 		int oldProfile = config.pvEffectsProfile == 1 ? 0 : 1;
-		const std::string oldEffectsDir = Application::getAppDir() + "res\\effect\\" + std::to_string(oldProfile) + "\\";
-		const std::string effectsDir = Application::getAppDir() + "res\\effect\\" + std::to_string(config.pvEffectsProfile) + "\\";
+		const std::string oldEffectsDir = Application::getAppDir() + "res/effect/" + std::to_string(oldProfile) + "/";
+		const std::string effectsDir = Application::getAppDir() + "res/effect/" + std::to_string(config.pvEffectsProfile) + "/";
 		size_t effectCount = arrayLength(Effect::effectNames);
 
 		// Cleanup. We don't want all profiles and their resources loaded in memory
@@ -473,8 +473,7 @@ namespace MikuMikuWorld
 				APP_NAME,
 				fullErrorMessage,
 				IO::MessageBoxButtons::Ok,
-				IO::MessageBoxIcon::Warning,
-				Application::windowState.windowHandle
+				IO::MessageBoxIcon::Warning
 			);
 		}
 

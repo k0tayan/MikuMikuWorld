@@ -11,15 +11,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
-
-#include <Windows.h>
-#include "dwmapi.h"
-
-#undef min
-#undef max
-
 namespace MikuMikuWorld
 {
 	const ImVec2 UI::_btnNormal{ 24, 24 };
@@ -415,39 +406,6 @@ namespace MikuMikuWorld
 			return;
 
 		glfwSetWindowTitle(window, IO::formatString("%s - %s", APP_NAME, title.c_str()).c_str());
-	}
-
-	bool UI::isSystemDarkMode()
-	{
-		char buffer[4];
-		DWORD size = static_cast<DWORD>(sizeof(char) * 4);
-
-		auto result = RegGetValueW(
-			HKEY_CURRENT_USER,
-			L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
-			L"AppsUseLightTheme",
-			RRF_RT_REG_DWORD,
-			nullptr,
-			buffer,
-			&size
-		);
-
-		if (result != ERROR_SUCCESS)
-			return false; // Default to light mode
-
-		int i = int(buffer[3] << 24 | buffer[2] << 16 | buffer[1] << 8 | buffer[0]);
-		return i == 0;
-	}
-
-	void UI::setDarkMode(bool enabled)
-	{
-		GLFWwindow* window = glfwGetCurrentContext();
-		if (!window)
-			return;
-
-		HWND hwnd = glfwGetWin32Window(window);
-		BOOL isDarkMode = enabled;
-		::DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &isDarkMode, sizeof(isDarkMode));
 	}
 
 	void UI::updateBtnSizesDpiScaling(float scale)

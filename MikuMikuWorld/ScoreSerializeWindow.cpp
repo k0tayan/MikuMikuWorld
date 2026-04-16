@@ -45,7 +45,6 @@ namespace MikuMikuWorld
 		fileDialog.title = "Export Score";
 		fileDialog.filters = { getFormatFilter(format) };
 		fileDialog.defaultExtension = getFormatDefaultExtension(format);
-		fileDialog.parentWindowHandle = Application::windowState.windowHandle;
 
 		if (fileDialog.saveFile() == IO::FileDialogResult::OK)
 		{
@@ -319,8 +318,7 @@ namespace MikuMikuWorld
 				APP_NAME,
 				controller->getErrorMessage(),
 				IO::MessageBoxButtons::Ok,
-				IO::MessageBoxIcon::Warning,
-				Application::windowState.windowHandle
+				IO::MessageBoxIcon::Warning
 			);
 			controller.reset();
 			break;
@@ -329,8 +327,7 @@ namespace MikuMikuWorld
 				APP_NAME,
 				IO::formatString(getString("export_successful")),
 				IO::MessageBoxButtons::Ok,
-				IO::MessageBoxIcon::Information,
-				Application::windowState.windowHandle
+				IO::MessageBoxIcon::Information
 			);
 			controller.reset();
 			break;
@@ -339,8 +336,7 @@ namespace MikuMikuWorld
 				APP_NAME,
 				controller->getErrorMessage(),
 				IO::MessageBoxButtons::Ok,
-				IO::MessageBoxIcon::Warning,
-				Application::windowState.windowHandle
+				IO::MessageBoxIcon::Warning
 			);
 			[[fallthrough]];
 		case SerializeResult::DeserializeSuccess:
@@ -369,8 +365,7 @@ namespace MikuMikuWorld
 				APP_NAME,
 				controller->getErrorMessage(),
 				IO::MessageBoxButtons::Ok,
-				IO::MessageBoxIcon::Error,
-				Application::windowState.windowHandle
+				IO::MessageBoxIcon::Error
 			);
 			controller.reset();
 			break;
