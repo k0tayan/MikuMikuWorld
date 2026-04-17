@@ -120,3 +120,11 @@ Application
 - `IMGUI_DEFINE_MATH_OPERATORS` は ImGui ヘッダより前に定義する。これらを include する新しい翻訳単位を追加する際はこの順序を守ること。
 - Cocoa API を呼ぶ翻訳単位は `.mm` 拡張子にし、`Platform/Cocoa/` 配下に置く。C++ 側からは `extern "C"` 不要のプレーンな関数インターフェースで呼び出す。
 - 文字列は UTF-8 `std::string` に統一。`std::wstring` を新規に導入しない。
+
+## git規約
+- コミットやPRタイトルは「feat: xxx」もしくは「chore: yyy」とすること
+- メッセージは日本語で記載すること
+
+## オフラインレンダラーの実行
+- `--render` を走らせる際は必ず sandbox を無効化（`dangerouslyDisableSandbox: true`）で実行すること。sandbox 下だと GLFW/OpenGL の初期化で長時間ブロックしたあと異常終了する
+- 出力先は `.tmp/` 配下にすること。`$TMPDIR` だと子プロセスごとに違う実体を指すことがあり後から追えなくなる
