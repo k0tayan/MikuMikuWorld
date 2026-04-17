@@ -27,8 +27,9 @@ namespace MikuMikuWorld
 		int rankA{ NO_TEX };
 		int rankS{ NO_TEX };
 
-		// Score digits
+		// Score digits — shadow/outline (s-prefix) and fill layers are stacked.
 		int scoreDigit[10]{ NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX };
+		int scoreDigitFill[10]{ NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX };
 		int scoreDigitPercent{ NO_TEX };
 
 		// Combo digits

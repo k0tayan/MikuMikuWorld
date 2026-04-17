@@ -42,6 +42,9 @@ namespace MikuMikuWorld
 			char buf[32];
 			std::snprintf(buf, sizeof(buf), "s%d.png", i);
 			scoreDigit[i] = loadOne(scoreDigitDir + buf);
+
+			std::snprintf(buf, sizeof(buf), "%d.png", i);
+			scoreDigitFill[i] = loadOne(scoreDigitDir + buf);
 		}
 		scoreDigitPercent = loadOne(scoreDigitDir + "s%.png");
 

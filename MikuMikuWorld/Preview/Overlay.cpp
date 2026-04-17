@@ -223,6 +223,53 @@ namespace MikuMikuWorld
 			                        0.f, (float)t->getHeight(),
 			                        Color(1.f, 1.f, 1.f, 1.f), 104);
 		}
+
+		// Numeric score display. In pjsekai's tempbuffer the leftmost digit sits
+		// at (-127, 26) and each digit advances +22 in tempbuffer units, drawn at
+		// a within-tempbuffer scale of 0.65. Tempbuffer is then placed on canvas
+		// with a 1.5x object scale, so:
+		//   canvas_pos  = composite_center + tempbuffer_xy * 1.5
+		//   canvas_size = raw_pixels * 0.65 * 1.5
+		const int displayScore = (int)std::min(1200000.f, currentScore * 1000000.f / 0.896f);
+		char sbuf[16];
+		std::snprintf(sbuf, sizeof(sbuf), "%d", displayScore);
+		const int slen = (int)std::strlen(sbuf);
+
+		constexpr float POS_SCALE    = 1.5f;             // tempbuffer -> canvas pixel
+		constexpr float DIGIT_SCALE  = 0.65f * 1.5f;     // image pixel scale on canvas
+		constexpr float DIGIT_ADV    = 22.f;
+		constexpr float DIGIT_Y      = 26.f;
+		constexpr float DIGIT_START_X = -127.f;
+
+		auto drawDigitImage = [&](int texIdx, int colIndex, int z)
+		{
+			const Texture* t = OverlayAssets::get(texIdx);
+			if (!t) return;
+			const float tbX = DIGIT_START_X + DIGIT_ADV * colIndex;
+			const float cx = bgCX + tbX * POS_SCALE * sx;
+			const float cy = bgCY + DIGIT_Y * POS_SCALE * sy;
+			const float w  = (float)t->getWidth()  * DIGIT_SCALE * sx;
+			const float h  = (float)t->getHeight() * DIGIT_SCALE * sy;
+			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
+			                        *t, 0.f, (float)t->getWidth(),
+			                        0.f, (float)t->getHeight(),
+			                        Color(1.f, 1.f, 1.f, 1.f), z);
+		};
+
+		// Shadow (s-prefix) pass twice for density, then the fill pass on top.
+		for (int i = 0; i < slen; ++i)
+		{
+			int d = sbuf[i] - '0';
+			if (d < 0 || d > 9) continue;
+			drawDigitImage(assets.scoreDigit[d],     i, 105);
+			drawDigitImage(assets.scoreDigit[d],     i, 105);
+		}
+		for (int i = 0; i < slen; ++i)
+		{
+			int d = sbuf[i] - '0';
+			if (d < 0 || d > 9) continue;
+			drawDigitImage(assets.scoreDigitFill[d], i, 106);
+		}
 	}
 
 	void Overlay::drawComboAssets(Renderer* renderer, float sx, float sy)
@@ -469,23 +516,7 @@ namespace MikuMikuWorld
 			              artistScale, Color(1.f, 1.f, 1.f, 0.75f), 120, TextAlign::Left);
 		}
 
-		// Score percentage to the right of the bar — fade out once AP starts.
-		{
-			const float apFade = allPerfectTriggered
-				? std::clamp(1.f - allPerfectTimer / 0.5f, 0.f, 1.f)
-				: 1.f;
-			if (apFade > 0.01f)
-			{
-				char scoreBuf[16];
-				int pct = (int)std::round(currentScore * 100.f);
-				std::snprintf(scoreBuf, sizeof(scoreBuf), "%d", pct);
-				const float scale = 36.f / 64.f * unit;
-				const float x = (BAR_CENTER_X + BAR_WIDTH * 0.5f - 120.f) * sx;
-				const float y = (BAR_Y - 40.f) * sy;
-				text.drawText(renderer, scoreBuf, x, y, scale,
-				              Color(1.f, 1.f, 1.f, 0.85f * apFade), 120, TextAlign::Right);
-			}
-		}
+		// Score value now comes from the asset-based digit drawing in drawScoreBarAssets.
 
 		// When no asset pack is present, draw the self-made fallbacks.
 		if (!assets.hasCore())
