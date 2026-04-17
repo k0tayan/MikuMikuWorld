@@ -295,14 +295,30 @@ namespace MikuMikuWorld
 
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
 		drawList->AddRectFilled(boundaries.Min, boundaries.Max, 0xff202020);
-		
+
+		float currentTime = context.getTimeAtCurrentTick();
+		renderToFramebuffer(context, renderer, size.x, size.y, currentTime, playbackState.isPlaying);
+
+		drawList->AddImage((ImTextureID)(size_t)previewBuffer.getTexture(), position, position + size, {0, 1}, {1, 0});
+	}
+
+	void ScorePreviewWindow::renderToFramebuffer(ScoreContext& context, Renderer* renderer,
+	                                             float viewportWidth, float viewportHeight,
+	                                             float currentTime, bool isPlaying)
+	{
+		if (viewportWidth <= 0 || viewportHeight <= 0)
+			return;
+
+		if (context.scorePreviewDrawData.noteSpeed != config.pvNoteSpeed)
+			context.scorePreviewDrawData.calculateDrawData(context.score);
+
 		if (config.drawBackground && background.shouldUpdate(context.workingData.jacket))
 			background.update(renderer, context.workingData.jacket);
 
 		if (!context.scorePreviewDrawData.effectView.isInitialized())
 			context.scorePreviewDrawData.effectView.init();
 
-		if (playbackState.isPlaying)
+		if (isPlaying)
 		{
 			context.scorePreviewDrawData.effectView.update(context);
 		}
@@ -321,12 +337,12 @@ namespace MikuMikuWorld
 		shader->use();
 
 		// Create a projection to the engine coordinate system
-		float width  = size.x, height = size.y;
+		float width = viewportWidth, height = viewportHeight;
 		float scaledWidth = Engine::STAGE_TARGET_WIDTH * Engine::STAGE_WIDTH_RATIO;
 		float scaledHeight = Engine::STAGE_TARGET_HEIGHT * Engine::STAGE_HEIGHT_RATIO;
 		float scrTop  = Engine::STAGE_TARGET_HEIGHT * Engine::STAGE_TOP_RATIO;
-		Utils::fillRect(Engine::STAGE_TARGET_WIDTH, Engine::STAGE_TARGET_HEIGHT, size.x / size.y, width, height);
-		
+		Utils::fillRect(Engine::STAGE_TARGET_WIDTH, Engine::STAGE_TARGET_HEIGHT, viewportWidth / viewportHeight, width, height);
+
 		float aspectRatio = width / height;
 		scaledAspectRatio = scaledWidth / scaledHeight;
 
@@ -338,12 +354,11 @@ namespace MikuMikuWorld
 		auto pProjection = noteEffectsCamera.getProjectionMatrix(aspectRatio, 0.3, 1000);
 		float projectionScale = std::min(aspectRatio / EFFECTS_TARGET_ASPECT, 1.f);
 		pProjection = DirectX::XMMatrixScaling(projectionScale, projectionScale, 1.f) * pProjection;
-		
-		shader->setMatrix4("projection", viewProjection);
-		float currentTime = context.getTimeAtCurrentTick();
 
-		if (previewBuffer.getWidth() != size.x || previewBuffer.getHeight() != size.y)
-			previewBuffer.resize(size.x, size.y);
+		shader->setMatrix4("projection", viewProjection);
+
+		if (previewBuffer.getWidth() != viewportWidth || previewBuffer.getHeight() != viewportHeight)
+			previewBuffer.resize(viewportWidth, viewportHeight);
 		previewBuffer.bind();
 		previewBuffer.clear();
 
@@ -400,7 +415,6 @@ namespace MikuMikuWorld
 		renderer->endBatchWithBlending(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 		previewBuffer.unblind();
-		drawList->AddImage((ImTextureID)(size_t)previewBuffer.getTexture(), position, position + size, {0, 1}, {1, 0});
 	}
 
 	void ScorePreviewWindow::updateUI(ScoreEditorTimeline& timeline, ScoreContext& context)

@@ -65,22 +65,29 @@ namespace MikuMikuWorld
 		float getScrollbarWidth() const;
 		void updateScrollbar(ScoreEditorTimeline& timeline, ScoreContext& context) const;
 	public:
-		ScorePreviewWindow(); 
+		ScorePreviewWindow();
 		~ScorePreviewWindow();
 		void update(ScoreContext& context, Renderer* renderer);
 		void updateUI(ScoreEditorTimeline& timeline, ScoreContext& context);
+
+		// Render pure GL contents of the preview to the internal framebuffer.
+		// Used by both the ImGui preview window and the offline video renderer.
+		void renderToFramebuffer(ScoreContext& context, Renderer* renderer,
+		                        float viewportWidth, float viewportHeight,
+		                        float currentTime, bool isPlaying);
+		Framebuffer& getPreviewBuffer() { return previewBuffer; }
 
 		void drawNotes(const ScoreContext& context, Renderer* renderer);
 		void drawLines(const ScoreContext& context, Renderer* renderer);
 		void drawHoldTicks(const ScoreContext& context, Renderer* renderer);
 		void drawHoldCurves(const ScoreContext& context, Renderer* renderer);
- 		
+
 		void drawStage(Renderer* renderer);
 		void drawStageCover(Renderer* renderer);
 		void drawStageCoverDecoration(Renderer* renderer);
 
 		void setFullWindow(bool fullScreen);
-		
+
 		inline bool isFullWindow() const { return fullWindow; };
 
 		void loadNoteEffects(Effect::EffectView& effectView);
