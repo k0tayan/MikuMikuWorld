@@ -301,6 +301,7 @@ namespace MikuMikuWorld
 		ResourceManager::loadShader(appDir + "res/shaders/basic2d");
 		ResourceManager::loadShader(appDir + "res/shaders/masking");
 		ResourceManager::loadShader(appDir + "res/shaders/particles");
+		ResourceManager::loadShader(appDir + "res/shaders/text");
 
 		// TODO: Do not set the note skin texture indexes manually!
 		const std::string notes01TexDir = appDir + "res/notes/01/";
