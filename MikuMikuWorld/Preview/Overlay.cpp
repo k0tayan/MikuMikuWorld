@@ -259,9 +259,10 @@ namespace MikuMikuWorld
 		// with a 1.5x object scale, so:
 		//   canvas_pos  = composite_center + tempbuffer_xy * 1.5
 		//   canvas_size = raw_pixels * 0.65 * 1.5
-		const int displayScore = (int)std::min(1200000.f, currentScore * 1000000.f / 0.896f);
+		// pjsekai displays scores as zero-padded 8-digit numbers (e.g. 00528711).
+		const int displayScore = (int)std::min(99999999.f, std::max(0.f, currentScore * 1000000.f / 0.896f));
 		char sbuf[16];
-		std::snprintf(sbuf, sizeof(sbuf), "%d", displayScore);
+		std::snprintf(sbuf, sizeof(sbuf), "%08d", displayScore);
 		const int slen = (int)std::strlen(sbuf);
 
 		constexpr float POS_SCALE    = 1.5f;             // tempbuffer -> canvas pixel
