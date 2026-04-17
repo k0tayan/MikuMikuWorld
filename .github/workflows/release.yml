@@ -1,8 +1,8 @@
 name: Release
 
 on:
-  push:
-    tags: ['v*']
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -49,16 +49,14 @@ jobs:
 
       - name: Package .app
         run: |
-          ASSET="${{ runner.temp }}/MikuMikuWorld-${{ github.ref_name }}-macOS.zip"
+          ASSET="${{ runner.temp }}/MikuMikuWorld-${{ github.event.release.tag_name }}-macOS.zip"
           ditto -c -k --sequesterRsrc --keepParent build/Release/MikuMikuWorld.app "$ASSET"
           echo "ASSET=$ASSET" >> "$GITHUB_ENV"
 
-      - name: Create release
+      - name: Upload asset to release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" \
+          gh release upload "${{ github.event.release.tag_name }}" "$ASSET" \
             --repo "${{ github.repository }}" \
-            --title "${{ github.ref_name }}" \
-            --generate-notes \
-            "$ASSET"
+            --clobber
