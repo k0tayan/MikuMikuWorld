@@ -33,11 +33,16 @@ namespace MikuMikuWorld
 		constexpr float COMBO_LABEL_W    = 180.f;
 		constexpr float COMBO_LABEL_H    = 50.f;
 
+		// Parent object at (X=0, Y=127.5) with 拡大率 150% on 1920x1080 canvas
+		//   → canvas center (960, 540+127.5) = (960, 667.5).
+		// Script draws the image at obj.draw(0, 0, 0, 2/3) in a tempbuffer, so
+		// on-canvas pixels = image pixels * (2/3) * 1.5 = image pixels * 1.0.
+		// Lifetime is 20 frames at the rendering framerate (60fps reference)
+		// split into: 0-1 invisible, 2-4 scale pop, 5-19 stable.
 		constexpr float JUDGE_X          = 960.f;
-		constexpr float JUDGE_Y          = 860.f;
-		constexpr float JUDGE_WIDTH      = 560.f;
-		constexpr float JUDGE_HEIGHT     = 120.f;
-		constexpr float JUDGE_DURATION   = 0.28f;
+		constexpr float JUDGE_Y          = 667.5f;
+		constexpr float JUDGE_FPS        = 60.f;
+		constexpr float JUDGE_DURATION   = 20.f / JUDGE_FPS;
 
 		constexpr float AP_VIDEO_DURATION = 10.0f; // typical ap.mp4 length
 
@@ -509,17 +514,33 @@ namespace MikuMikuWorld
 		const Texture* t = OverlayAssets::get(assets.judgePerfect);
 		if (!t) return;
 
-		float a = judgmentFlashTimer / JUDGE_DURATION;
-		a = std::clamp(a, 0.f, 1.f);
-		// Quick pop: scale goes 0.9 -> 1.0 in first 40% of the lifetime.
-		float lifeT = 1.f - a;
-		float scale = 0.9f + 0.1f * std::min(1.f, lifeT / 0.4f);
+		// sekai.obj2 @判定: obj.draw uses zoom = (2/3) * factor where
+		//   factor(progress) = 1 - (-1.45 + progress/4)^4 in phase 2,
+		//   factor = 1          in phase 3,
+		// and alpha = 0 before phase 2. Parent scale 1.5 cancels the 2/3, so
+		// on-canvas scale equals factor directly.
+		const float elapsed = JUDGE_DURATION - judgmentFlashTimer;
+		const float progressFrames = elapsed * JUDGE_FPS;
 
-		const float w = JUDGE_WIDTH * sx * scale;
-		const float h = JUDGE_HEIGHT * sy * scale;
+		float scale = 1.f;
+		float alpha = 1.f;
+		if (progressFrames < 2.f)
+		{
+			alpha = 0.f;
+		}
+		else if (progressFrames < 5.f)
+		{
+			const float u = -1.45f + progressFrames * 0.25f;
+			scale = 1.f - u * u * u * u;
+		}
+
+		if (alpha <= 0.f) return;
+
+		const float w = (float)t->getWidth()  * sx * scale;
+		const float h = (float)t->getHeight() * sy * scale;
 		const float cx = JUDGE_X * sx;
 		const float cy = JUDGE_Y * sy;
-		drawTexCentered(renderer, t, cx, cy, w, h, 115, a);
+		drawTexCentered(renderer, t, cx, cy, w, h, 115, alpha);
 	}
 
 	void Overlay::drawApVideo(Renderer* renderer, float /*sx*/, float /*sy*/,
