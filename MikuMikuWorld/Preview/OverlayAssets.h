@@ -27,6 +27,14 @@ namespace MikuMikuWorld
 		int rankA{ NO_TEX };
 		int rankS{ NO_TEX };
 
+		// "SCORE RANK" text label drawn under the big rank letter.
+		// Each rank has its own copy tinted to the rank colour.
+		int rankTxtD{ NO_TEX };
+		int rankTxtC{ NO_TEX };
+		int rankTxtB{ NO_TEX };
+		int rankTxtA{ NO_TEX };
+		int rankTxtS{ NO_TEX };
+
 		// Score digits — shadow/outline (s-prefix) and fill layers are stacked.
 		int scoreDigit[10]{ NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX };
 		int scoreDigitFill[10]{ NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX };

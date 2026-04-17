@@ -36,6 +36,12 @@ namespace MikuMikuWorld
 		rankA = loadOne(overlayDir + "score/rank/chr/a.png");
 		rankS = loadOne(overlayDir + "score/rank/chr/s.png");
 
+		rankTxtD = loadOne(overlayDir + "score/rank/txt/en/d.png");
+		rankTxtC = loadOne(overlayDir + "score/rank/txt/en/c.png");
+		rankTxtB = loadOne(overlayDir + "score/rank/txt/en/b.png");
+		rankTxtA = loadOne(overlayDir + "score/rank/txt/en/a.png");
+		rankTxtS = loadOne(overlayDir + "score/rank/txt/en/s.png");
+
 		const std::string scoreDigitDir = overlayDir + "score/digit/";
 		for (int i = 0; i < 10; ++i)
 		{

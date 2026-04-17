@@ -249,12 +249,13 @@ namespace MikuMikuWorld
 		// Big rank letter in the dark panel on the left.
 		// sekai.obj2 draws score/rank/chr/{rank}.png at tempbuffer (-188, -6)
 		// with scale 0.22, then the tempbuffer is placed at 1.5x.
+		int rankTxtTex = assets.rankTxtD;
 		{
 			int rankTex = assets.rankD;
-			if (ratio >= RANK_S) rankTex = assets.rankS;
-			else if (ratio >= RANK_A) rankTex = assets.rankA;
-			else if (ratio >= RANK_B) rankTex = assets.rankB;
-			else if (ratio >= RANK_C) rankTex = assets.rankC;
+			if (ratio >= RANK_S) { rankTex = assets.rankS; rankTxtTex = assets.rankTxtS; }
+			else if (ratio >= RANK_A) { rankTex = assets.rankA; rankTxtTex = assets.rankTxtA; }
+			else if (ratio >= RANK_B) { rankTex = assets.rankB; rankTxtTex = assets.rankTxtB; }
+			else if (ratio >= RANK_C) { rankTex = assets.rankC; rankTxtTex = assets.rankTxtC; }
 
 			if (const Texture* t = OverlayAssets::get(rankTex))
 			{
@@ -271,6 +272,24 @@ namespace MikuMikuWorld
 				                        0.f, (float)t->getHeight(),
 				                        Color(1.f, 1.f, 1.f, 1.f), 107);
 			}
+		}
+
+		// "SCORE RANK" label beneath the big rank letter.
+		// sekai.obj2: obj.draw(-187, 35, 0, 0.34 * (22/130)).
+		if (const Texture* t = OverlayAssets::get(rankTxtTex))
+		{
+			constexpr float TXT_POS_SCALE   = 1.5f;
+			constexpr float TXT_IMAGE_SCALE = 0.34f * (22.f / 130.f) * 1.5f;
+			constexpr float TXT_TB_X = -187.f;
+			constexpr float TXT_TB_Y =   35.f;
+			const float cx = bgCX + TXT_TB_X * TXT_POS_SCALE * sx;
+			const float cy = bgCY + TXT_TB_Y * TXT_POS_SCALE * sy;
+			const float w  = (float)t->getWidth()  * TXT_IMAGE_SCALE * sx;
+			const float h  = (float)t->getHeight() * TXT_IMAGE_SCALE * sy;
+			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
+			                        *t, 0.f, (float)t->getWidth(),
+			                        0.f, (float)t->getHeight(),
+			                        Color(1.f, 1.f, 1.f, 1.f), 107);
 		}
 
 		// Numeric score display. In pjsekai's tempbuffer the leftmost digit sits
