@@ -312,6 +312,20 @@ namespace MikuMikuWorld
 		if (context.scorePreviewDrawData.noteSpeed != config.pvNoteSpeed)
 			context.scorePreviewDrawData.calculateDrawData(context.score);
 
+		if (!overlayInitAttempted)
+		{
+			overlayInitAttempted = true;
+			overlay.init(Application::getAppDir() + "res/fonts/NotoSansCJK-Regular.ttc");
+		}
+		// Cheap structural signature: note count usually changes when the score is edited.
+		int overlayRevision = (int)context.score.notes.size();
+		if (overlayRevision != lastOverlayScoreRevision)
+		{
+			lastOverlayScoreRevision = overlayRevision;
+			if (overlay.isInitialized())
+				overlay.onScoreChanged(context.score);
+		}
+
 		if (config.drawBackground && background.shouldUpdate(context.workingData.jacket))
 			background.update(renderer, context.workingData.jacket);
 
@@ -325,6 +339,7 @@ namespace MikuMikuWorld
 		else if (playbackState.wasLastFramePlaying)
 		{
 			context.scorePreviewDrawData.effectView.reset();
+			overlay.reset();
 		}
 
 		static int shaderId = ResourceManager::getShader("basic2d");
@@ -413,6 +428,26 @@ namespace MikuMikuWorld
 		renderer->beginBatch();
 		context.scorePreviewDrawData.effectView.drawEffects(renderer, currentTime);
 		renderer->endBatchWithBlending(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+		if (config.pvOverlayEnabled && overlay.isInitialized())
+		{
+			overlay.update(context.score, currentTime, isPlaying);
+
+			static int textShaderId = ResourceManager::getShader("text");
+			Shader* textShader = textShaderId >= 0 ? ResourceManager::shaders[textShaderId] : nullptr;
+
+			const auto overlayProjection = Camera::getOffCenterOrthographicProjection(0.f, viewportWidth, viewportHeight, 0.f);
+
+			if (textShader)
+			{
+				textShader->use();
+				textShader->setMatrix4("projection", overlayProjection);
+				renderer->beginBatch();
+				overlay.drawShapes(renderer, viewportWidth, viewportHeight);
+				overlay.drawTexts(renderer, viewportWidth, viewportHeight, context);
+				renderer->endBatch();
+			}
+		}
 
 		previewBuffer.unblind();
 	}

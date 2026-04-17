@@ -119,6 +119,7 @@ namespace MikuMikuWorld
 		int pvEffectsProfile;
 		int notesSkin;
 		bool pvDrawToolbar;
+		bool pvOverlayEnabled;
 
 		InputConfiguration input;
 

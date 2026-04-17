@@ -65,6 +65,7 @@ namespace MikuMikuWorld
 			bool hasSeVolume = false; float seVolume = 1.0f;
 			bool disableSE = false;
 			bool dryRun = false;
+			bool hasOverlay = false; bool overlayEnabled = true;
 		};
 
 		void printUsage()
@@ -91,6 +92,8 @@ namespace MikuMikuWorld
 				"  [--se-profile <N>]   SE profile (0 or 1, default: app_config)\n"
 				"  [--se-volume <X>]    SE volume multiplier (default 1.0)\n"
 				"  [--no-se]            Disable note sound effects\n"
+				"  [--no-overlay]       Disable in-frame score/combo overlay\n"
+				"  [--overlay]          Force-enable the overlay (default)\n"
 				"  [--dry-run]          Load & verify the score, then exit (no rendering)\n");
 		}
 
@@ -129,6 +132,8 @@ namespace MikuMikuWorld
 				else if (a == "--se-profile") { if (!needs(i, "--se-profile")) return false; opt.hasSeProfile = true; opt.seProfile = std::atoi(argv[++i]); }
 				else if (a == "--se-volume") { if (!needs(i, "--se-volume")) return false; opt.hasSeVolume = true; opt.seVolume = std::atof(argv[++i]); }
 				else if (a == "--no-se") { opt.disableSE = true; }
+				else if (a == "--no-overlay") { opt.hasOverlay = true; opt.overlayEnabled = false; }
+				else if (a == "--overlay") { opt.hasOverlay = true; opt.overlayEnabled = true; }
 				else if (a == "--dry-run") { opt.dryRun = true; }
 				else {
 					std::fprintf(stderr, "Unknown argument: %s\n", a.c_str());
@@ -648,6 +653,7 @@ namespace MikuMikuWorld
 		if (opt.hasNotesSkin)       config.notesSkin = opt.notesSkin;
 		if (opt.hasEffectsProfile)  config.pvEffectsProfile = opt.effectsProfile;
 		if (opt.hasMirror)          config.pvMirrorScore = opt.mirror;
+		if (opt.hasOverlay)         config.pvOverlayEnabled = opt.overlayEnabled;
 
 		Application::loadResources();
 

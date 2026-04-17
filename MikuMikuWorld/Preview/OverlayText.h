@@ -35,6 +35,9 @@ namespace MikuMikuWorld
 		              const Color& tint, int zIndex,
 		              TextAlign align = TextAlign::Left);
 
+		void drawSolidRect(Renderer* renderer, float x, float y, float w, float h,
+		                   const Color& tint, int zIndex);
+
 		float measureWidth(const std::string& utf8, float scale);
 		float getLineHeight(float scale) const { return (ascent - descent) * scale; }
 
@@ -70,5 +73,7 @@ namespace MikuMikuWorld
 		float lineGap{ 0.f };
 
 		unsigned int glTexture{ 0 };
+
+		float solidU0{ 0.f }, solidV0{ 0.f }, solidU1{ 0.f }, solidV1{ 0.f };
 	};
 }

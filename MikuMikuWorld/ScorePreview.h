@@ -1,6 +1,7 @@
 #pragma once
 #include "ScoreContext.h"
 #include "ScoreEditorTimeline.h"
+#include "Preview/Overlay.h"
 #include "Rendering/Framebuffer.h"
 #include "Rendering/Renderer.h"
 #include "Rendering/Camera.h"
@@ -40,6 +41,11 @@ namespace MikuMikuWorld
 		Framebuffer previewBuffer;
 		ScorePreviewBackground background;
 		float scaledAspectRatio;
+
+		Overlay overlay;
+		bool overlayInitAttempted{ false };
+		bool lastPlayingState{ false };
+		int  lastOverlayScoreRevision{ -1 };
 
 		/// <summary>
 		/// The camera used to align particles to preview

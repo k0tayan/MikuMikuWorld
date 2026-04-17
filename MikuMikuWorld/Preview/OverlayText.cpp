@@ -111,11 +111,23 @@ namespace MikuMikuWorld
 		// Single-channel alpha textures need the R value broadcast on sample.
 		GLint swizzle[4] = { GL_RED, GL_RED, GL_RED, GL_RED };
 		glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle);
+		// Reserve a small white patch at the top-left so drawSolidRect can use the
+		// same atlas & shader as text (R=1 sampled as alpha=1 through the swizzle).
+		const int solidSize = 4;
+		std::vector<uint8_t> whitePatch(solidSize * solidSize, 255);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, solidSize, solidSize, GL_RED, GL_UNSIGNED_BYTE, whitePatch.data());
+		// Sample the center of the patch to avoid bleeding into unused texels.
+		solidU0 = 1.f / (float)atlasWidth;
+		solidV0 = 1.f / (float)atlasHeight;
+		solidU1 = 3.f / (float)atlasWidth;
+		solidV1 = 3.f / (float)atlasHeight;
+
 		glBindTexture(GL_TEXTURE_2D, 0);
 
-		cursorX = 1;
+		cursorX = solidSize + 1;
 		cursorY = 1;
-		shelfHeight = 0;
+		shelfHeight = solidSize;
 
 		initialized = true;
 		return true;
@@ -210,6 +222,27 @@ namespace MikuMikuWorld
 			width += g->advance * scale;
 		}
 		return width;
+	}
+
+	void OverlayText::drawSolidRect(Renderer* renderer, float x, float y, float w, float h,
+	                                const Color& tint, int zIndex)
+	{
+		if (!initialized || !renderer || w <= 0.f || h <= 0.f) return;
+
+		std::array<DirectX::XMFLOAT4, 4> pos{
+			DirectX::XMFLOAT4{ x + w, y,     0.f, 1.f },
+			DirectX::XMFLOAT4{ x + w, y + h, 0.f, 1.f },
+			DirectX::XMFLOAT4{ x,     y + h, 0.f, 1.f },
+			DirectX::XMFLOAT4{ x,     y,     0.f, 1.f },
+		};
+		std::array<DirectX::XMFLOAT4, 4> uv{
+			DirectX::XMFLOAT4{ solidU1, solidV0, 0.f, 0.f },
+			DirectX::XMFLOAT4{ solidU1, solidV1, 0.f, 0.f },
+			DirectX::XMFLOAT4{ solidU0, solidV1, 0.f, 0.f },
+			DirectX::XMFLOAT4{ solidU0, solidV0, 0.f, 0.f },
+		};
+		DirectX::XMFLOAT4 color{ tint.r, tint.g, tint.b, tint.a };
+		renderer->pushQuad(pos, uv, DirectX::XMMatrixIdentity(), color, (int)glTexture, zIndex);
 	}
 
 	void OverlayText::drawText(Renderer* renderer, const std::string& utf8,
