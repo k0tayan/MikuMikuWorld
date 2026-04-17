@@ -1070,6 +1070,7 @@ namespace MikuMikuWorld
 						UI::addSliderProperty(getString("notes_speed"), config.pvNoteSpeed, 1, 12, "%.2f");
 						UI::addCheckboxProperty(getString("mirror_score"), config.pvMirrorScore);
 						UI::addCheckboxProperty(getString("preview_draw_toolbar"), config.pvDrawToolbar);
+						UI::addCheckboxProperty(getString("preview_overlay"), config.pvOverlayEnabled);
 						UI::endPropertyColumns();
 					}
 
