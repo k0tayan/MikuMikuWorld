@@ -57,6 +57,9 @@ namespace MikuMikuWorld
 		float judgmentFlashTimer{ 0.f };
 		float allPerfectTimer{ 0.f };
 		bool  allPerfectTriggered{ false };
+		// Time of the last note hit. Used to delay the AP takeover so the
+		// post-play moment breathes before the video kicks in.
+		float fullComboTime{ -1.f };
 		size_t nextIdx{ 0 };
 		float lastScoreEpoch{ -1.f };
 

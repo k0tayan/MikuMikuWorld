@@ -47,7 +47,8 @@ namespace MikuMikuWorld
 			int fps = 60;
 			int width = 1920;
 			int height = 1080;
-			float tailSeconds = 2.0f;
+			// 3s pause + ~10s AP.mp4 + 2s cushion so the AP takeover finishes.
+			float tailSeconds = 15.0f;
 
 			bool hasNoteSpeed = false;  float noteSpeed = 0;
 			bool hasStageCover = false; float stageCover = 0;
@@ -494,10 +495,12 @@ namespace MikuMikuWorld
 		}
 
 		FILE* spawnFfmpeg(const RenderOptions& opt, float audioOffsetSeconds,
-			const std::string& sePath)
+			const std::string& sePath,
+			const std::string& apAudioPath, float apStartSeconds)
 		{
 			const bool haveBgm = !opt.audioPath.empty();
 			const bool haveSe = !sePath.empty();
+			const bool haveAp = !apAudioPath.empty();
 
 			std::string cmd = shellQuote(opt.ffmpegPath);
 			cmd += " -y";
@@ -508,6 +511,7 @@ namespace MikuMikuWorld
 
 			int bgmIndex = -1;
 			int seIndex = -1;
+			int apIndex = -1;
 			int nextIndex = 1;
 
 			if (haveBgm)
@@ -532,28 +536,64 @@ namespace MikuMikuWorld
 				cmd += " -i " + shellQuote(sePath);
 				seIndex = nextIndex++;
 			}
+			if (haveAp)
+			{
+				cmd += " -i " + shellQuote(apAudioPath);
+				apIndex = nextIndex++;
+			}
 
 			cmd += " -vf vflip";
 			cmd += " -c:v libx264 -pix_fmt yuv420p -preset medium -crf 18";
 
-			if (haveBgm && haveSe)
+			// Build audio graph. The AP track needs an adelay to land at the
+			// right moment (itsoffset is unreliable when feeding through amix).
+			std::vector<std::string> amixInputs;
+			std::string filter;
+			if (haveBgm)
+			{
+				amixInputs.push_back(std::to_string(bgmIndex) + ":a");
+			}
+			if (haveSe)
+			{
+				amixInputs.push_back(std::to_string(seIndex) + ":a");
+			}
+			if (haveAp)
 			{
 				char buf[128];
+				const int delayMs = (int)std::max(0.f, apStartSeconds * 1000.f);
 				std::snprintf(buf, sizeof(buf),
-					" -filter_complex [%d:a][%d:a]amix=inputs=2:duration=longest:normalize=0[aout]",
-					bgmIndex, seIndex);
-				cmd += buf;
+					"[%d:a]adelay=%d|%d,apad=pad_dur=0.1[ap];",
+					apIndex, delayMs, delayMs);
+				filter += buf;
+				amixInputs.push_back("ap");
+			}
+
+			if (amixInputs.size() >= 2)
+			{
+				filter += "";
+				for (const auto& lbl : amixInputs)
+				{
+					filter += "[" + lbl + "]";
+				}
+				filter += "amix=inputs=" + std::to_string(amixInputs.size())
+				       + ":duration=longest:normalize=0[aout]";
+				cmd += " -filter_complex " + shellQuote(filter);
 				cmd += " -map 0:v -map [aout]";
 				cmd += " -c:a aac -b:a 192k";
 			}
-			else if (haveBgm)
+			else if (amixInputs.size() == 1)
 			{
-				cmd += " -map 0:v -map " + std::to_string(bgmIndex) + ":a";
-				cmd += " -c:a aac -b:a 192k";
-			}
-			else if (haveSe)
-			{
-				cmd += " -map 0:v -map " + std::to_string(seIndex) + ":a";
+				if (!filter.empty())
+				{
+					// Single AP input still needs the delay applied.
+					filter += "[" + amixInputs[0] + "]anull[aout]";
+					cmd += " -filter_complex " + shellQuote(filter);
+					cmd += " -map 0:v -map [aout]";
+				}
+				else
+				{
+					cmd += " -map 0:v -map " + amixInputs[0];
+				}
 				cmd += " -c:a aac -b:a 192k";
 			}
 
@@ -726,8 +766,14 @@ namespace MikuMikuWorld
 			}
 		}
 
+		// Keep in sync with Overlay::AP_TRIGGER_DELAY.
+		constexpr float AP_TRIGGER_DELAY = 2.0f;
+		std::string apAudioPath = resourceDir + "res/overlay/ap.mp4";
+		if (!IO::File::exists(apAudioPath)) apAudioPath.clear();
+		const float apStartSec = apAudioPath.empty() ? 0.f : scoreDuration + AP_TRIGGER_DELAY;
+
 		// ffmpeg
-		FILE* pipe = spawnFfmpeg(opt, audioOffset, sePath);
+		FILE* pipe = spawnFfmpeg(opt, audioOffset, sePath, apAudioPath, apStartSec);
 		if (!pipe)
 		{
 			std::fprintf(stderr, "Failed to spawn ffmpeg\n");

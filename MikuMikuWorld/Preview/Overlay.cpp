@@ -48,6 +48,7 @@ namespace MikuMikuWorld
 		constexpr float JUDGE_DURATION   = 20.f / JUDGE_FPS;
 
 		constexpr float AP_VIDEO_DURATION = 10.0f; // typical ap.mp4 length
+		constexpr float AP_TRIGGER_DELAY  = 2.0f;  // pause after the last note
 
 		// Rank boundary ratios (v3 gauge)
 		constexpr float RANK_C = 746.f  / 1650.f;
@@ -94,6 +95,7 @@ namespace MikuMikuWorld
 		judgmentFlashTimer = 0.f;
 		allPerfectTimer = 0.f;
 		allPerfectTriggered = false;
+		fullComboTime = -1.f;
 		nextIdx = 0;
 		scoreDelta = 0;
 		scoreDeltaAge = 1000.f;
@@ -166,11 +168,17 @@ namespace MikuMikuWorld
 				currentScore = std::min(1.f, currentScore + n.weight / totalWeight);
 			judgmentFlashTimer = JUDGE_DURATION;
 			++nextIdx;
-			if (totalCombo > 0 && currentCombo >= totalCombo && !allPerfectTriggered)
-			{
-				allPerfectTriggered = true;
-				allPerfectTimer = 0.f;
-			}
+			if (totalCombo > 0 && currentCombo >= totalCombo && fullComboTime < 0.f)
+				fullComboTime = n.time;
+		}
+
+		// Wait AP_TRIGGER_DELAY seconds after the last note before the AP
+		// takeover starts, so the final combo has a moment to breathe.
+		if (fullComboTime >= 0.f && !allPerfectTriggered
+		    && currentTime - fullComboTime >= AP_TRIGGER_DELAY)
+		{
+			allPerfectTriggered = true;
+			allPerfectTimer = 0.f;
 		}
 
 		const int scoreAfter = toDisplayScore(currentScore);
