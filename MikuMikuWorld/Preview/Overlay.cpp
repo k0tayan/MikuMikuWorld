@@ -191,7 +191,9 @@ namespace MikuMikuWorld
 			                        Color(1.f, 1.f, 1.f, 1.f), 100);
 		}
 
-		// bar.png (1650x76) — gradient fill, masked by currentScore from the left
+		// bar.png (1650x76) — gradient fill, masked by currentScore from the left.
+		// Position offset (+34, -3) is in tempbuffer coordinates which project
+		// to canvas via the .exo's 1.5x scale, independent from the 0.2145 image scale.
 		const float ratio = std::clamp(currentScore, 0.f, 1.f);
 		if (ratio > 0.f)
 		{
@@ -199,8 +201,8 @@ namespace MikuMikuWorld
 			{
 				const float barW = (float)t->getWidth()  * COMP_SCALE * sx;
 				const float barH = (float)t->getHeight() * COMP_SCALE * sy;
-				const float barCX = bgCX + 34.f * COMP_SCALE * sx;
-				const float barCY = bgCY - 3.f  * COMP_SCALE * sy;
+				const float barCX = bgCX + 34.f * 1.5f * sx;
+				const float barCY = bgCY - 3.f  * 1.5f * sy;
 				const float barLeft = barCX - barW * 0.5f;
 				const float barTop  = barCY - barH * 0.5f;
 
