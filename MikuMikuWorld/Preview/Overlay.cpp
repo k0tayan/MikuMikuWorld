@@ -47,23 +47,13 @@ namespace MikuMikuWorld
 		constexpr float RANK_A = 1234.f / 1650.f;
 		constexpr float RANK_S = 1478.f / 1650.f;
 
-		void drawTexCentered(Renderer* r, Texture* t, float cx, float cy,
+		void drawTexCentered(Renderer* r, const Texture* t, float cx, float cy,
 		                     float w, float h, int z, float alpha = 1.f)
 		{
 			if (!t || w <= 0.f || h <= 0.f) return;
 			r->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
 			                 *t, 0.f, (float)t->getWidth(),
 			                 0.f, (float)t->getHeight(),
-			                 Color(1.f, 1.f, 1.f, alpha), z);
-		}
-
-		void drawTexStretched(Renderer* r, Texture* t, float x, float y,
-		                      float w, float h, int z,
-		                      float uvX1, float uvX2, float alpha = 1.f)
-		{
-			if (!t || w <= 0.f || h <= 0.f) return;
-			r->drawRectangle({ x, y }, { w, h },
-			                 *t, uvX1, uvX2, 0.f, (float)t->getHeight(),
 			                 Color(1.f, 1.f, 1.f, alpha), z);
 		}
 	}
@@ -176,64 +166,61 @@ namespace MikuMikuWorld
 
 	void Overlay::drawScoreBarAssets(Renderer* renderer, float sx, float sy)
 	{
-		const float barLeft = (BAR_CENTER_X - BAR_WIDTH * 0.5f) * sx;
-		const float barTop  = BAR_Y * sy;
-		const float barW    = BAR_WIDTH * sx;
-		const float barH    = BAR_HEIGHT * sy;
+		// Layout derived from pjsekai-overlay-APPEND sekai.obj2 @スコア group:
+		//   obj.setoption("drawtarget", "tempbuffer", x_boundary, 180)
+		//   obj.draw(0, 0, 0, 0.2145)                 -- bg at composite scale 21.45%
+		//   obj.draw(34, -3, 0, 0.2145)               -- bar shifted (+34, -3)
+		//   obj.draw(0, 0, 0, 0.2145)                 -- fg overlay
+		// Parent (.exo) positions the composite at (-583.5, -471) with 150% scale
+		// in a 1920x1080 canvas whose (0,0) is the center → screen center (376.5, 69).
+		constexpr float COMP_SCALE = 0.2145f * 1.5f;   // 0.32175
+		constexpr float COMP_CX    = 376.5f;
+		constexpr float COMP_CY    = 69.f;
 
-		// Background frame behind the bar
-		if (assets.barBg)
-			renderer->drawRectangle({ barLeft - 20.f * sx, barTop - 8.f * sy },
-			                        { barW + 40.f * sx, barH + 16.f * sy },
-			                        *assets.barBg, 0.f, (float)assets.barBg->getWidth(),
-			                        0.f, (float)assets.barBg->getHeight(),
+		const float bgCX = COMP_CX * sx;
+		const float bgCY = COMP_CY * sy;
+
+		// bg.png (2069x446) — full bar frame with SCORE label and dark slot
+		if (const Texture* t = OverlayAssets::get(assets.barBg))
+		{
+			const float w = (float)t->getWidth()  * COMP_SCALE * sx;
+			const float h = (float)t->getHeight() * COMP_SCALE * sy;
+			renderer->drawRectangle({ bgCX - w * 0.5f, bgCY - h * 0.5f }, { w, h },
+			                        *t, 0.f, (float)t->getWidth(),
+			                        0.f, (float)t->getHeight(),
 			                        Color(1.f, 1.f, 1.f, 1.f), 100);
+		}
 
-		// The bar itself (filled portion grows to the right)
+		// bar.png (1650x76) — gradient fill, masked by currentScore from the left
 		const float ratio = std::clamp(currentScore, 0.f, 1.f);
-		if (assets.bar && ratio > 0.f)
+		if (ratio > 0.f)
 		{
-			const int texW = assets.bar->getWidth();
-			drawTexStretched(renderer, assets.bar, barLeft, barTop,
-			                 barW * ratio, barH, 102,
-			                 0.f, texW * ratio);
+			if (const Texture* t = OverlayAssets::get(assets.bar))
+			{
+				const float barW = (float)t->getWidth()  * COMP_SCALE * sx;
+				const float barH = (float)t->getHeight() * COMP_SCALE * sy;
+				const float barCX = bgCX + 34.f * COMP_SCALE * sx;
+				const float barCY = bgCY - 3.f  * COMP_SCALE * sy;
+				const float barLeft = barCX - barW * 0.5f;
+				const float barTop  = barCY - barH * 0.5f;
+
+				const float fillW = barW * ratio;
+				const float uvX2  = (float)t->getWidth() * ratio;
+				renderer->drawRectangle({ barLeft, barTop }, { fillW, barH },
+				                        *t, 0.f, uvX2,
+				                        0.f, (float)t->getHeight(),
+				                        Color(1.f, 1.f, 1.f, 1.f), 102);
+			}
 		}
 
-		// Rank tick marks strip (covers the whole bar length)
-		if (assets.bars)
+		// fg.png (2069x446) — rank letter glyphs positioned above the bar track
+		if (const Texture* t = OverlayAssets::get(assets.barFg))
 		{
-			renderer->drawRectangle({ barLeft, barTop }, { barW, barH },
-			                        *assets.bars, 0.f, (float)assets.bars->getWidth(),
-			                        0.f, (float)assets.bars->getHeight(),
-			                        Color(1.f, 1.f, 1.f, 1.f), 103);
-		}
-
-		// SCORE label on the left of the bar
-		if (assets.scoreLabel)
-		{
-			const float w = 180.f * sx;
-			const float h = 40.f * sy;
-			renderer->drawRectangle({ barLeft - w - 10.f * sx, barTop - 4.f * sy },
-			                        { w, h + 8.f * sy },
-			                        *assets.scoreLabel, 0.f, (float)assets.scoreLabel->getWidth(),
-			                        0.f, (float)assets.scoreLabel->getHeight(),
-			                        Color(1.f, 1.f, 1.f, 1.f), 103);
-		}
-
-		// Current rank glyph over/above the bar
-		Texture* rank = assets.rankD;
-		if (ratio >= RANK_S) rank = assets.rankS;
-		else if (ratio >= RANK_A) rank = assets.rankA;
-		else if (ratio >= RANK_B) rank = assets.rankB;
-		else if (ratio >= RANK_C) rank = assets.rankC;
-		if (rank)
-		{
-			const float rw = 70.f * sx;
-			const float rh = 70.f * sy;
-			renderer->drawRectangle({ barLeft + barW + 14.f * sx, barTop - 20.f * sy },
-			                        { rw, rh },
-			                        *rank, 0.f, (float)rank->getWidth(),
-			                        0.f, (float)rank->getHeight(),
+			const float w = (float)t->getWidth()  * COMP_SCALE * sx;
+			const float h = (float)t->getHeight() * COMP_SCALE * sy;
+			renderer->drawRectangle({ bgCX - w * 0.5f, bgCY - h * 0.5f }, { w, h },
+			                        *t, 0.f, (float)t->getWidth(),
+			                        0.f, (float)t->getHeight(),
 			                        Color(1.f, 1.f, 1.f, 1.f), 104);
 		}
 	}
@@ -258,7 +245,7 @@ namespace MikuMikuWorld
 			char c = buf[i];
 			int d = c - '0';
 			if (d < 0 || d > 9) continue;
-			Texture* t = assets.comboDigit[d];
+			const Texture* t = OverlayAssets::get(assets.comboDigit[d]);
 			if (!t) continue;
 
 			const float aspect = (float)t->getWidth() / (float)t->getHeight();
@@ -268,20 +255,20 @@ namespace MikuMikuWorld
 		}
 
 		// COMBO label beneath the digits
-		if (assets.comboLabel)
+		if (const Texture* lbl = OverlayAssets::get(assets.comboLabel))
 		{
 			const float lw = COMBO_LABEL_W * std::min(sx, sy);
 			const float lh = COMBO_LABEL_H * std::min(sx, sy);
 			const float cx = COMBO_CENTER_X * sx;
 			const float cy2 = COMBO_LABEL_Y * sy;
-			drawTexCentered(renderer, assets.comboLabel, cx, cy2, lw, lh, 110);
+			drawTexCentered(renderer, lbl, cx, cy2, lw, lh, 110);
 		}
 	}
 
 	void Overlay::drawJudgmentAsset(Renderer* renderer, float sx, float sy)
 	{
 		if (judgmentFlashTimer <= 0.f) return;
-		Texture* t = assets.judgePerfect;
+		const Texture* t = OverlayAssets::get(assets.judgePerfect);
 		if (!t) return;
 
 		float a = judgmentFlashTimer / JUDGE_DURATION;
