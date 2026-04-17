@@ -224,6 +224,33 @@ namespace MikuMikuWorld
 			                        Color(1.f, 1.f, 1.f, 1.f), 104);
 		}
 
+		// Big rank letter in the dark panel on the left.
+		// sekai.obj2 draws score/rank/chr/{rank}.png at tempbuffer (-188, -6)
+		// with scale 0.22, then the tempbuffer is placed at 1.5x.
+		{
+			int rankTex = assets.rankD;
+			if (ratio >= RANK_S) rankTex = assets.rankS;
+			else if (ratio >= RANK_A) rankTex = assets.rankA;
+			else if (ratio >= RANK_B) rankTex = assets.rankB;
+			else if (ratio >= RANK_C) rankTex = assets.rankC;
+
+			if (const Texture* t = OverlayAssets::get(rankTex))
+			{
+				constexpr float RANK_POS_SCALE = 1.5f;
+				constexpr float RANK_IMAGE_SCALE = 0.22f * 1.5f;
+				constexpr float RANK_TB_X = -188.f;
+				constexpr float RANK_TB_Y =  -6.f;
+				const float cx = bgCX + RANK_TB_X * RANK_POS_SCALE * sx;
+				const float cy = bgCY + RANK_TB_Y * RANK_POS_SCALE * sy;
+				const float w  = (float)t->getWidth()  * RANK_IMAGE_SCALE * sx;
+				const float h  = (float)t->getHeight() * RANK_IMAGE_SCALE * sy;
+				renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
+				                        *t, 0.f, (float)t->getWidth(),
+				                        0.f, (float)t->getHeight(),
+				                        Color(1.f, 1.f, 1.f, 1.f), 107);
+			}
+		}
+
 		// Numeric score display. In pjsekai's tempbuffer the leftmost digit sits
 		// at (-127, 26) and each digit advances +22 in tempbuffer units, drawn at
 		// a within-tempbuffer scale of 0.65. Tempbuffer is then placed on canvas
