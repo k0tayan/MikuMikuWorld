@@ -29,6 +29,7 @@
 #include "ScoreSerializer.h"
 #include "SonolusSerializer.h"
 #include "SusSerializer.h"
+#include "UscSerializer.h"
 #include "Tempo.h"
 #include "IO.h"
 
@@ -63,13 +64,14 @@ namespace MikuMikuWorld
 			bool hasSeProfile = false; int seProfile = 0;
 			bool hasSeVolume = false; float seVolume = 1.0f;
 			bool disableSE = false;
+			bool dryRun = false;
 		};
 
 		void printUsage()
 		{
 			std::fprintf(stderr,
 				"Usage: MikuMikuWorld --render \\\n"
-				"  --score <path>       Score file (.mmws/.sus/.json/.json.gz)\n"
+				"  --score <path>       Score file (.mmws/.sus/.json/.json.gz/.usc)\n"
 				"  --out <path.mp4>     Output video path\n"
 				"  [--audio <path>]     Audio file muxed as audio track\n"
 				"  [--fps <N>]          Frames per second (default 60)\n"
@@ -88,7 +90,8 @@ namespace MikuMikuWorld
 				"  [--audio-offset <sec>] Shift audio relative to chart (seconds)\n"
 				"  [--se-profile <N>]   SE profile (0 or 1, default: app_config)\n"
 				"  [--se-volume <X>]    SE volume multiplier (default 1.0)\n"
-				"  [--no-se]            Disable note sound effects\n");
+				"  [--no-se]            Disable note sound effects\n"
+				"  [--dry-run]          Load & verify the score, then exit (no rendering)\n");
 		}
 
 		bool parseArgs(int argc, char** argv, RenderOptions& opt)
@@ -126,6 +129,7 @@ namespace MikuMikuWorld
 				else if (a == "--se-profile") { if (!needs(i, "--se-profile")) return false; opt.hasSeProfile = true; opt.seProfile = std::atoi(argv[++i]); }
 				else if (a == "--se-volume") { if (!needs(i, "--se-volume")) return false; opt.hasSeVolume = true; opt.seVolume = std::atof(argv[++i]); }
 				else if (a == "--no-se") { opt.disableSE = true; }
+				else if (a == "--dry-run") { opt.dryRun = true; }
 				else {
 					std::fprintf(stderr, "Unknown argument: %s\n", a.c_str());
 					printUsage();
@@ -133,9 +137,15 @@ namespace MikuMikuWorld
 				}
 			}
 
-			if (opt.scorePath.empty() || opt.outputPath.empty())
+			if (opt.scorePath.empty())
 			{
-				std::fprintf(stderr, "Both --score and --out are required.\n");
+				std::fprintf(stderr, "--score is required.\n");
+				printUsage();
+				return false;
+			}
+			if (!opt.dryRun && opt.outputPath.empty())
+			{
+				std::fprintf(stderr, "--out is required (unless --dry-run).\n");
 				printUsage();
 				return false;
 			}
@@ -160,6 +170,8 @@ namespace MikuMikuWorld
 				return std::make_unique<SonolusSerializer>(
 					std::make_unique<PySekaiEngine>(),
 					IO::endsWith(filename, GZ_JSON_EXTENSION));
+			case SerializeFormat::UscFormat:
+				return std::make_unique<UscSerializer>();
 			default:
 				return nullptr;
 			}
@@ -556,6 +568,39 @@ namespace MikuMikuWorld
 		RenderOptions opt;
 		if (!parseArgs(argc, argv, opt))
 			return 2;
+
+		if (opt.dryRun)
+		{
+			auto serializer = makeSerializer(opt.scorePath);
+			if (!serializer)
+			{
+				std::fprintf(stderr, "Unsupported score format: %s\n", opt.scorePath.c_str());
+				return 4;
+			}
+			Score score;
+			try
+			{
+				score = serializer->deserialize(opt.scorePath);
+			}
+			catch (const PartialScoreDeserializeError& ex)
+			{
+				std::fprintf(stderr, "Partial load: %s\n", ex.what());
+				score = ex.getScore();
+			}
+			catch (const std::exception& ex)
+			{
+				std::fprintf(stderr, "Failed to load score: %s\n", ex.what());
+				return 4;
+			}
+			const int maxTick = scoreMaxTick(score);
+			const float duration = accumulateDuration(maxTick, TICKS_PER_BEAT, score.tempoChanges);
+			std::fprintf(stderr,
+				"[dry-run] notes=%zu holds=%zu tempos=%zu hiSpeeds=%zu maxTick=%d duration=%.3fs musicOffset=%.3fms\n",
+				score.notes.size(), score.holdNotes.size(),
+				score.tempoChanges.size(), score.hiSpeedChanges.size(),
+				maxTick, duration, score.metadata.musicOffset);
+			return 0;
+		}
 
 		// GLFW hidden-window context setup
 		if (!glfwInit())

@@ -107,6 +107,7 @@ set(MMW_SOURCES
     ${MMW_SRC_DIR}/SusExporter.cpp
     ${MMW_SRC_DIR}/SusParser.cpp
     ${MMW_SRC_DIR}/SusSerializer.cpp
+    ${MMW_SRC_DIR}/UscSerializer.cpp
     ${MMW_SRC_DIR}/Tempo.cpp
     ${MMW_SRC_DIR}/UI.cpp
     ${MMW_SRC_DIR}/Utilities.cpp

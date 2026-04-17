@@ -4,6 +4,7 @@
 #include "NativeScoreSerializer.h"
 #include "SusSerializer.h"
 #include "SonolusSerializer.h"
+#include "UscSerializer.h"
 #include "SusExporter.h"
 
 #include "Localization.h"
@@ -19,6 +20,7 @@ namespace MikuMikuWorld
 		IO::formatString("%s (%s)", IO::mmwsFilter.filterName.c_str(), MMWS_EXTENSION),
 		IO::formatString("%s (%s)", IO::susFilter.filterName.c_str(), SUS_EXTENSION),
 		IO::lvlDatFilter.filterName,
+		IO::formatString("%s (%s)", IO::uscFilter.filterName.c_str(), USC_EXTENSION),
 	};
 
 	DefaultScoreSerializeController::DefaultScoreSerializeController(Score score)
@@ -67,6 +69,9 @@ namespace MikuMikuWorld
 		case SerializeFormat::LvlDataFormat:
 			serializer = std::make_unique<SonolusSerializer>(std::make_unique<PySekaiEngine>(), IO::endsWith(filename, GZ_JSON_EXTENSION));
 		break;
+		case SerializeFormat::UscFormat:
+			serializer = std::make_unique<UscSerializer>();
+			break;
 		default:
 			errorMessage = "No serializer found!";
 			serializer.reset();
@@ -128,6 +133,9 @@ namespace MikuMikuWorld
 				{
 					for (int i = static_cast<int>(SerializeFormat::SusFormat); i < FORMAT_NAMES.size(); ++i)
 					{
+						// USC export is read-only: skip it from the export picker.
+						if (i == static_cast<int>(SerializeFormat::UscFormat))
+							continue;
 						bool isSelected = (static_cast<int>(selectedFormat) == i);
 						if (isSelected)
 						{
@@ -199,6 +207,9 @@ namespace MikuMikuWorld
 			break;
 		case SerializeFormat::LvlDataFormat:
 			deserializer = std::make_unique<SonolusSerializer>(std::make_unique<PySekaiEngine>());
+			break;
+		case SerializeFormat::UscFormat:
+			deserializer = std::make_unique<UscSerializer>();
 			break;
 		default:
 			deserializer.reset();

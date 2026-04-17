@@ -23,6 +23,7 @@ namespace MikuMikuWorld
 		NativeFormat,
 		SusFormat,
 		LvlDataFormat,
+		UscFormat,
 		FormatCount
 	};
 
