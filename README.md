@@ -5,10 +5,20 @@ A chart editor and viewer for the mobile rhythm game Project Sekai Colorful Stag
 
 ## Features:
 - Import and export Sliding Universal Score (\*.sus) files.
+- Partial import of Universal Sekai Chart (\*.usc) files (read-only; see notes below).
 - BPM, time signature, and hi-speed adjustment.
 - Custom timeline divisions up to 1920.
 - Create and use custom note presets.
 - Customizable keyboard shortcuts.
+
+### USC support (partial)
+USC files can be loaded, but the following elements are dropped or downgraded because the internal data model has no equivalent:
+- `damage` notes are skipped.
+- `GuideColor` / `FadeType` are ignored.
+- `EaseInOut` / `EaseOutIn` easings fall back to `Linear`.
+- Multiple `timeScaleGroup` layers are flattened into a single hi-speed track.
+
+Writing USC is not supported.
 
 ## Requirements:
 - macOS 10.14 or later.
