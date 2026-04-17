@@ -1,9 +1,11 @@
 #include "Application.h"
 #include "IO.h"
+#include "OfflineRenderer.h"
 #include "UI.h"
 #include <GLFW/glfw3.h>
 #include <mach-o/dyld.h>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 
 namespace mmw = MikuMikuWorld;
@@ -52,6 +54,12 @@ static void dropCallback(GLFWwindow*, int count, const char** paths)
 
 int main(int argc, char** argv)
 {
+	for (int i = 1; i < argc; ++i)
+	{
+		if (std::strcmp(argv[i], "--render") == 0)
+			return mmw::runOfflineRender(argc, argv, getExecutableDir(), getUserDataDir());
+	}
+
 	try
 	{
 		mmw::Result result = app.initialize(getExecutableDir(), getUserDataDir());

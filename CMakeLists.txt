@@ -86,6 +86,7 @@ set(MMW_SOURCES
     ${MMW_SRC_DIR}/AggregateNotesFilter.cpp
     ${MMW_SRC_DIR}/NoteSkin.cpp
     ${MMW_SRC_DIR}/NotesPreset.cpp
+    ${MMW_SRC_DIR}/OfflineRenderer.cpp
     ${MMW_SRC_DIR}/OpenGlLoader.cpp
     ${MMW_SRC_DIR}/Particle.cpp
     ${MMW_SRC_DIR}/PreviewData.cpp

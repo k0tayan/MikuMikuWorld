@@ -290,6 +290,12 @@ namespace MikuMikuWorld
 		glfwSwapBuffers(window);
 	}
 
+	void Application::setPaths(const std::string& root, const std::string& userData)
+	{
+		appDir = root;
+		userDataDir = userData;
+	}
+
 	void Application::loadResources()
 	{
 		ResourceManager::loadShader(appDir + "res/shaders/basic2d");

@@ -59,7 +59,8 @@ namespace MikuMikuWorld
 		void handlePendingOpenFiles();
 		void readSettings();
 		void writeSettings();
-		void loadResources();
+		static void setPaths(const std::string& root, const std::string& userData);
+		static void loadResources();
 		void dispose();
 		void setFullScreen(bool fullScreen);
 		bool attemptSave();
