@@ -47,6 +47,10 @@ namespace MikuMikuWorld
 			scoreDigitFill[i] = loadOne(scoreDigitDir + buf);
 		}
 		scoreDigitPercent = loadOne(scoreDigitDir + "s%.png");
+		scoreDigitPlus      = loadOne(scoreDigitDir + "s+.png");
+		scoreDigitPlusFill  = loadOne(scoreDigitDir + "+.png");
+		scoreDigitMinus     = loadOne(scoreDigitDir + "s-.png");
+		scoreDigitMinusFill = loadOne(scoreDigitDir + "-.png");
 
 		const std::string comboDir = overlayDir + "combo/";
 		for (int i = 0; i < 10; ++i)

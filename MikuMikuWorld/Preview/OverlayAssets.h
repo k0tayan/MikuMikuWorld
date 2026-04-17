@@ -31,6 +31,10 @@ namespace MikuMikuWorld
 		int scoreDigit[10]{ NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX };
 		int scoreDigitFill[10]{ NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX };
 		int scoreDigitPercent{ NO_TEX };
+		int scoreDigitPlus{ NO_TEX };      // shadow layer of '+'
+		int scoreDigitPlusFill{ NO_TEX };  // fill layer of '+'
+		int scoreDigitMinus{ NO_TEX };
+		int scoreDigitMinusFill{ NO_TEX };
 
 		// Combo digits
 		int comboDigit[10]{ NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX };

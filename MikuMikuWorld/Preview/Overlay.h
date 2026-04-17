@@ -60,6 +60,10 @@ namespace MikuMikuWorld
 		size_t nextIdx{ 0 };
 		float lastScoreEpoch{ -1.f };
 
+		// "+xxxx" score gain animation
+		int   scoreDelta{ 0 };
+		float scoreDeltaAge{ 1000.f };
+
 		void buildTimeline(const Score& score);
 
 		// Asset-based draw helpers

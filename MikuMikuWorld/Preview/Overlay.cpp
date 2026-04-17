@@ -87,6 +87,8 @@ namespace MikuMikuWorld
 		allPerfectTimer = 0.f;
 		allPerfectTriggered = false;
 		nextIdx = 0;
+		scoreDelta = 0;
+		scoreDeltaAge = 1000.f;
 	}
 
 	void Overlay::buildTimeline(const Score& score)
@@ -141,6 +143,11 @@ namespace MikuMikuWorld
 
 		float dt = std::max(0.f, currentTime - std::max(prevTime, 0.f));
 
+		auto toDisplayScore = [](float ratio) {
+			return (int)std::min(99999999.f, std::max(0.f, ratio * 1000000.f / 0.896f));
+		};
+		const int scoreBefore = toDisplayScore(currentScore);
+
 		while (nextIdx < timeline.size() && timeline[nextIdx].time <= currentTime)
 		{
 			const auto& n = timeline[nextIdx];
@@ -155,6 +162,14 @@ namespace MikuMikuWorld
 				allPerfectTimer = 0.f;
 			}
 		}
+
+		const int scoreAfter = toDisplayScore(currentScore);
+		if (scoreAfter > scoreBefore)
+		{
+			scoreDelta = scoreAfter - scoreBefore;
+			scoreDeltaAge = 0.f;
+		}
+		scoreDeltaAge += dt;
 
 		if (judgmentFlashTimer > 0.f) judgmentFlashTimer = std::max(0.f, judgmentFlashTimer - dt);
 		if (allPerfectTriggered) allPerfectTimer += dt;
@@ -299,6 +314,69 @@ namespace MikuMikuWorld
 			int d = sbuf[i] - '0';
 			if (d < 0 || d > 9) continue;
 			drawDigitImage(assets.scoreDigitFill[d], i, 106);
+		}
+
+		// "+xxxx" score gain animation: slide-in and fade-in to the right of
+		// the main score, disappear after ~0.5s. Matches sekai.obj2 @スコア
+		// numbers: digit scale 0.42, advance 13.65, y=+34 in tempbuffer.
+		if (scoreDeltaAge < 0.5f && scoreDelta != 0)
+		{
+			const float progress = std::clamp(scoreDeltaAge / 0.2f, 0.f, 1.f);
+			const float easedProgress = 1.f - std::pow(0.9f, progress * 12.f);
+			float alpha = std::clamp(1.3f * easedProgress, 0.f, 1.f);
+			// Fade out in the last portion of the lifetime.
+			if (scoreDeltaAge > 0.35f)
+				alpha *= std::max(0.f, 1.f - (scoreDeltaAge - 0.35f) / 0.15f);
+
+			const bool negative = scoreDelta < 0;
+			int absDelta = negative ? -scoreDelta : scoreDelta;
+			char dbuf[16];
+			std::snprintf(dbuf, sizeof(dbuf), "%d", absDelta);
+			const int dlen = (int)std::strlen(dbuf);
+
+			constexpr float DELTA_SCALE   = 0.42f * 1.5f;
+			constexpr float DELTA_ADV     = 13.65f;
+			constexpr float DELTA_Y       = 34.f;
+			constexpr float DELTA_X_START = 26.25f;
+			constexpr float DELTA_X_SLIDE = 47.f;
+			const float deltaX = DELTA_X_START + DELTA_X_SLIDE * easedProgress;
+
+			auto drawDeltaGlyph = [&](int texIdx, int colIndex, int z)
+			{
+				const Texture* t = OverlayAssets::get(texIdx);
+				if (!t) return;
+				const float tbX = deltaX + DELTA_ADV * colIndex;
+				const float cx = bgCX + tbX * 1.5f * sx;
+				const float cy = bgCY + DELTA_Y * 1.5f * sy;
+				const float w  = (float)t->getWidth()  * DELTA_SCALE * sx;
+				const float h  = (float)t->getHeight() * DELTA_SCALE * sy;
+				renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
+				                        *t, 0.f, (float)t->getWidth(),
+				                        0.f, (float)t->getHeight(),
+				                        Color(1.f, 1.f, 1.f, alpha), z);
+			};
+
+			// First glyph is the sign, followed by digits.
+			const int signShadow = negative ? assets.scoreDigitMinus : assets.scoreDigitPlus;
+			const int signFill   = negative ? assets.scoreDigitMinusFill : assets.scoreDigitPlusFill;
+
+			// Shadow pass (twice) then fill pass.
+			drawDeltaGlyph(signShadow, 0, 108);
+			drawDeltaGlyph(signShadow, 0, 108);
+			for (int i = 0; i < dlen; ++i)
+			{
+				int d = dbuf[i] - '0';
+				if (d < 0 || d > 9) continue;
+				drawDeltaGlyph(assets.scoreDigit[d], i + 1, 108);
+				drawDeltaGlyph(assets.scoreDigit[d], i + 1, 108);
+			}
+			drawDeltaGlyph(signFill, 0, 109);
+			for (int i = 0; i < dlen; ++i)
+			{
+				int d = dbuf[i] - '0';
+				if (d < 0 || d > 9) continue;
+				drawDeltaGlyph(assets.scoreDigitFill[d], i + 1, 109);
+			}
 		}
 	}
 
