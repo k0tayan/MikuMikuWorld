@@ -420,6 +420,89 @@ namespace MikuMikuWorld
 		}
 	}
 
+	void Overlay::drawLifeAssets(Renderer* renderer, float sx, float sy)
+	{
+		if (!assets.hasLife()) return;
+
+		// Layout derived from pjsekai-overlay-APPEND main_jp_16-9_1920x1080.exo
+		// + sekai.obj2 @ライフ block:
+		//   parent object at (X=705, Y=-477.5) with 拡大率 17.33% on 1920x1080
+		//     → canvas center (960+705, 540-477.5) = (1665, 62.5)
+		//   script draws everything inside the tempbuffer at scale 1, so the
+		//   tempbuffer pixel → canvas pixel factor is exactly 0.1733.
+		constexpr float COMP_CX    = 1665.f;
+		constexpr float COMP_CY    =   62.5f;
+		constexpr float COMP_SCALE = 0.1733f;
+
+		const float cx = COMP_CX * sx;
+		const float cy = COMP_CY * sy;
+
+		// bg.png (2560x600) — empty life frame / "LIFE" label
+		if (const Texture* t = OverlayAssets::get(assets.lifeBg))
+		{
+			const float w = (float)t->getWidth()  * COMP_SCALE * sx;
+			const float h = (float)t->getHeight() * COMP_SCALE * sy;
+			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
+			                        *t, 0.f, (float)t->getWidth(),
+			                        0.f, (float)t->getHeight(),
+			                        Color(1.f, 1.f, 1.f, 1.f), 100);
+		}
+
+		// Preview simulates a perfect play, so life stays at max (1000/1000)
+		// and the fill graphic is drawn unmasked — covering the full bg track.
+		constexpr int lifeValue = 1000;
+
+		if (const Texture* t = OverlayAssets::get(assets.lifeNormal))
+		{
+			const float w = (float)t->getWidth()  * COMP_SCALE * sx;
+			const float h = (float)t->getHeight() * COMP_SCALE * sy;
+			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
+			                        *t, 0.f, (float)t->getWidth(),
+			                        0.f, (float)t->getHeight(),
+			                        Color(1.f, 1.f, 1.f, 1.f), 101);
+		}
+
+		// Digit string: right-aligned at tempbuffer (563, -145), advancing
+		// -127 per additional digit, drawn at image-scale 0.147 in tempbuffer.
+		char buf[16];
+		std::snprintf(buf, sizeof(buf), "%d", lifeValue);
+		const int dlen = (int)std::strlen(buf);
+
+		constexpr float DIGIT_SCALE = 0.147f;
+		constexpr float DIGIT_ADV   = 127.f;
+		constexpr float DIGIT_TB_X  = 563.f;
+		constexpr float DIGIT_TB_Y  = -145.f;
+
+		auto drawDigit = [&](int texIdx, int rightIndex, int z)
+		{
+			const Texture* t = OverlayAssets::get(texIdx);
+			if (!t) return;
+			const float tbX = DIGIT_TB_X - rightIndex * DIGIT_ADV;
+			const float glyphCX = cx + tbX * COMP_SCALE * sx;
+			const float glyphCY = cy + DIGIT_TB_Y * COMP_SCALE * sy;
+			const float w = (float)t->getWidth()  * DIGIT_SCALE * COMP_SCALE * sx;
+			const float h = (float)t->getHeight() * DIGIT_SCALE * COMP_SCALE * sy;
+			renderer->drawRectangle({ glyphCX - w * 0.5f, glyphCY - h * 0.5f }, { w, h },
+			                        *t, 0.f, (float)t->getWidth(),
+			                        0.f, (float)t->getHeight(),
+			                        Color(1.f, 1.f, 1.f, 1.f), z);
+		};
+
+		// Shadow (s-prefix) pass then fill pass on top.
+		for (int i = 0; i < dlen; ++i)
+		{
+			int d = buf[dlen - 1 - i] - '0';
+			if (d < 0 || d > 9) continue;
+			drawDigit(assets.lifeDigit[d], i, 102);
+		}
+		for (int i = 0; i < dlen; ++i)
+		{
+			int d = buf[dlen - 1 - i] - '0';
+			if (d < 0 || d > 9) continue;
+			drawDigit(assets.lifeDigitFill[d], i, 103);
+		}
+	}
+
 	void Overlay::drawJudgmentAsset(Renderer* renderer, float sx, float sy)
 	{
 		if (judgmentFlashTimer <= 0.f) return;
@@ -588,6 +671,7 @@ namespace MikuMikuWorld
 			}
 			drawScoreBarAssets(renderer, sx, sy);
 			drawComboAssets(renderer, sx, sy);
+			drawLifeAssets(renderer, sx, sy);
 			drawJudgmentAsset(renderer, sx, sy);
 		}
 	}

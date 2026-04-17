@@ -45,10 +45,19 @@ namespace MikuMikuWorld
 		int judgeGreat{ NO_TEX };
 		int judgeGood{ NO_TEX };
 
+		// Life bar (v3)
+		int lifeBg{ NO_TEX };
+		int lifeNormal{ NO_TEX };
+		int lifeDanger{ NO_TEX };
+		int lifeOverflow{ NO_TEX };
+		int lifeDigit[10]{ NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX };
+		int lifeDigitFill[10]{ NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX };
+
 		// All Perfect video path
 		std::string apVideoPath;
 
 		bool hasCore() const { return bar != NO_TEX && barBg != NO_TEX && comboDigit[0] != NO_TEX && judgePerfect != NO_TEX; }
+		bool hasLife() const { return lifeBg != NO_TEX && lifeNormal != NO_TEX && lifeDigitFill[0] != NO_TEX; }
 		bool hasAp() const { return !apVideoPath.empty(); }
 
 		void load(const std::string& overlayDir);

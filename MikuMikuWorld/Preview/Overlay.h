@@ -70,6 +70,7 @@ namespace MikuMikuWorld
 		void drawScoreBarAssets(Renderer* renderer, float sx, float sy);
 		void drawComboAssets(Renderer* renderer, float sx, float sy);
 		void drawJudgmentAsset(Renderer* renderer, float sx, float sy);
+		void drawLifeAssets(Renderer* renderer, float sx, float sy);
 		void drawApVideo(Renderer* renderer, float sx, float sy, float vpW, float vpH);
 
 		// Fallback self-drawn helpers (used when asset pack is missing)

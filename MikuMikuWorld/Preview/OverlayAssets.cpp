@@ -65,6 +65,23 @@ namespace MikuMikuWorld
 		judgeGreat   = loadOne(overlayDir + "judgement/judge_great.png");
 		judgeGood    = loadOne(overlayDir + "judgement/judge_good.png");
 
+		const std::string lifeDir = overlayDir + "life/v3/";
+		lifeBg       = loadOne(lifeDir + "bg.png");
+		lifeNormal   = loadOne(lifeDir + "normal.png");
+		lifeDanger   = loadOne(lifeDir + "danger.png");
+		lifeOverflow = loadOne(lifeDir + "overflow.png");
+
+		const std::string lifeDigitDir = lifeDir + "digit/";
+		for (int i = 0; i < 10; ++i)
+		{
+			char buf[32];
+			std::snprintf(buf, sizeof(buf), "s%d.png", i);
+			lifeDigit[i] = loadOne(lifeDigitDir + buf);
+
+			std::snprintf(buf, sizeof(buf), "%d.png", i);
+			lifeDigitFill[i] = loadOne(lifeDigitDir + buf);
+		}
+
 		const std::string apMp4 = overlayDir + "ap.mp4";
 		if (IO::File::exists(apMp4)) apVideoPath = apMp4;
 	}
