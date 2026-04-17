@@ -1,17 +1,15 @@
-name: Build
+name: Release
 
 on:
-  pull_request:
-    branches: [master]
-  workflow_dispatch:
+  push:
+    tags: ['v*']
 
-concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: write
 
 jobs:
-  macos:
-    name: macOS (universal)
+  release:
+    name: Build and release (macOS universal)
     runs-on: macos-14
     steps:
       - name: Checkout
@@ -49,14 +47,18 @@ jobs:
           file "$APP/Contents/MacOS/MikuMikuWorld"
           lipo -archs "$APP/Contents/MacOS/MikuMikuWorld"
 
-      - name: Stage .app for upload
+      - name: Package .app
         run: |
-          mkdir -p artifact
-          cp -R build/Release/MikuMikuWorld.app artifact/
+          ASSET="${{ runner.temp }}/MikuMikuWorld-${{ github.ref_name }}-macOS.zip"
+          ditto -c -k --sequesterRsrc --keepParent build/Release/MikuMikuWorld.app "$ASSET"
+          echo "ASSET=$ASSET" >> "$GITHUB_ENV"
 
-      - name: Upload .app bundle
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: MikuMikuWorld-macOS
-          path: artifact
-          if-no-files-found: error
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes \
+            "$ASSET"
