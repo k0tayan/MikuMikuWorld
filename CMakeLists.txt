@@ -99,7 +99,9 @@ set(MMW_SOURCES
     ${MMW_SRC_DIR}/ScoreEditorWindows.cpp
     ${MMW_SRC_DIR}/ScorePreview.cpp
     ${MMW_SRC_DIR}/Preview/Overlay.cpp
+    ${MMW_SRC_DIR}/Preview/OverlayAssets.cpp
     ${MMW_SRC_DIR}/Preview/OverlayText.cpp
+    ${MMW_SRC_DIR}/Preview/VideoPlayer.cpp
     ${MMW_SRC_DIR}/ScoreSerializeWindow.cpp
     ${MMW_SRC_DIR}/ScoreSerializer.cpp
     ${MMW_SRC_DIR}/ScoreStats.cpp

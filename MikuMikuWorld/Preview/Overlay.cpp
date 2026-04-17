@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
 
 namespace MikuMikuWorld
 {
@@ -18,41 +19,68 @@ namespace MikuMikuWorld
 		constexpr float LAYOUT_WIDTH  = 1920.f;
 		constexpr float LAYOUT_HEIGHT = 1080.f;
 
-		constexpr float BAR_CENTER_X = 960.f;
-		constexpr float BAR_Y        = 32.f;
-		constexpr float BAR_WIDTH    = 1100.f;
-		constexpr float BAR_HEIGHT   = 24.f;
+		// 1920x1080 layout coordinates (match the pjsekai-overlay-APPEND .exo roughly)
+		constexpr float BAR_CENTER_X     = 960.f;
+		constexpr float BAR_Y            = 70.f;
+		constexpr float BAR_WIDTH        = 1650.f;
+		constexpr float BAR_HEIGHT       = 40.f;
 
-		constexpr float COMBO_X      = 1780.f;
-		constexpr float COMBO_Y      = 520.f;
-		constexpr float COMBO_LABEL_Y = 620.f;
+		constexpr float COMBO_CENTER_X   = 1660.f;
+		constexpr float COMBO_DIGIT_Y    = 460.f;
+		constexpr float COMBO_LABEL_Y    = 620.f;
+		constexpr float COMBO_DIGIT_SIZE = 120.f;  // Reference height of a digit in layout space.
+		constexpr float COMBO_DIGIT_ADV  = 96.f;   // Advance between digits.
+		constexpr float COMBO_LABEL_W    = 180.f;
+		constexpr float COMBO_LABEL_H    = 50.f;
 
-		constexpr float JACKET_X     = 36.f;
-		constexpr float JACKET_Y     = 36.f;
-		constexpr float JACKET_SIZE  = 180.f;
-		constexpr float TITLE_X      = 232.f;
-		constexpr float TITLE_Y      = 60.f;
-		constexpr float ARTIST_Y     = 120.f;
+		constexpr float JUDGE_X          = 960.f;
+		constexpr float JUDGE_Y          = 860.f;
+		constexpr float JUDGE_WIDTH      = 560.f;
+		constexpr float JUDGE_HEIGHT     = 120.f;
+		constexpr float JUDGE_DURATION   = 0.28f;
 
-		constexpr float JUDGE_X      = 960.f;
-		constexpr float JUDGE_Y      = 720.f;
-		constexpr float JUDGE_DURATION = 0.35f;
+		constexpr float AP_VIDEO_DURATION = 10.0f; // typical ap.mp4 length
 
-		constexpr float AP_X         = 960.f;
-		constexpr float AP_Y         = 360.f;
-
-		// Rank boundaries borrowed from pjsekai-overlay-APPEND (v3 gauge), normalized.
+		// Rank boundary ratios (v3 gauge)
 		constexpr float RANK_C = 746.f  / 1650.f;
 		constexpr float RANK_B = 990.f  / 1650.f;
 		constexpr float RANK_A = 1234.f / 1650.f;
 		constexpr float RANK_S = 1478.f / 1650.f;
+
+		void drawTexCentered(Renderer* r, Texture* t, float cx, float cy,
+		                     float w, float h, int z, float alpha = 1.f)
+		{
+			if (!t || w <= 0.f || h <= 0.f) return;
+			r->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
+			                 *t, 0.f, (float)t->getWidth(),
+			                 0.f, (float)t->getHeight(),
+			                 Color(1.f, 1.f, 1.f, alpha), z);
+		}
+
+		void drawTexStretched(Renderer* r, Texture* t, float x, float y,
+		                      float w, float h, int z,
+		                      float uvX1, float uvX2, float alpha = 1.f)
+		{
+			if (!t || w <= 0.f || h <= 0.f) return;
+			r->drawRectangle({ x, y }, { w, h },
+			                 *t, uvX1, uvX2, 0.f, (float)t->getHeight(),
+			                 Color(1.f, 1.f, 1.f, alpha), z);
+		}
 	}
 
 	Overlay::Overlay() = default;
 
-	bool Overlay::init(const std::string& fontPath)
+	bool Overlay::init(const std::string& fontPath,
+	                   const std::string& overlayDir,
+	                   const std::string& videoCacheDir)
 	{
-		return text.init(fontPath);
+		bool ok = text.init(fontPath);
+
+		assets.load(overlayDir);
+		if (assets.hasAp() && !videoCacheDir.empty())
+			apVideo.open(assets.apVideoPath, videoCacheDir, 30, 960, 540);
+
+		return ok;
 	}
 
 	void Overlay::onScoreChanged(const Score& score)
@@ -101,30 +129,19 @@ namespace MikuMikuWorld
 				w = crit ? 0.2f : 0.1f;
 				break;
 			}
-
 			if (w <= 0.f) continue;
-
 			timeline.push_back({ noteTime(note.tick), w });
 			totalWeight += w;
 			++totalCombo;
 		}
-
 		std::sort(timeline.begin(), timeline.end(),
 		          [](const ScoredNote& a, const ScoredNote& b) { return a.time < b.time; });
 	}
 
 	void Overlay::update(const Score& score, float currentTime, bool isPlaying)
 	{
-		// If the playhead jumped backward (user scrubbed or looped), rebuild progress.
 		if (currentTime + 1e-3f < lastScoreEpoch)
-		{
-			currentCombo = 0;
-			currentScore = 0.f;
-			judgmentFlashTimer = 0.f;
-			allPerfectTimer = 0.f;
-			allPerfectTriggered = false;
-			nextIdx = 0;
-		}
+			reset();
 
 		float prevTime = lastScoreEpoch;
 		lastScoreEpoch = currentTime;
@@ -140,9 +157,8 @@ namespace MikuMikuWorld
 			++currentCombo;
 			if (totalWeight > 0.f)
 				currentScore = std::min(1.f, currentScore + n.weight / totalWeight);
-			judgmentFlashTimer = 0.35f;
+			judgmentFlashTimer = JUDGE_DURATION;
 			++nextIdx;
-
 			if (totalCombo > 0 && currentCombo >= totalCombo && !allPerfectTriggered)
 			{
 				allPerfectTriggered = true;
@@ -154,26 +170,179 @@ namespace MikuMikuWorld
 		if (allPerfectTriggered) allPerfectTimer += dt;
 	}
 
-	void Overlay::drawScoreBar(Renderer* renderer, float sx, float sy)
+	// ---------------------------------------------------------------------
+	// Asset-based drawing (used when res/overlay/ is populated)
+	// ---------------------------------------------------------------------
+
+	void Overlay::drawScoreBarAssets(Renderer* renderer, float sx, float sy)
 	{
 		const float barLeft = (BAR_CENTER_X - BAR_WIDTH * 0.5f) * sx;
 		const float barTop  = BAR_Y * sy;
 		const float barW    = BAR_WIDTH * sx;
 		const float barH    = BAR_HEIGHT * sy;
 
-		// Background
-		text.drawSolidRect(renderer, barLeft, barTop, barW, barH,
-		                   Color(0.f, 0.f, 0.f, 0.55f), 100);
+		// Background frame behind the bar
+		if (assets.barBg)
+			renderer->drawRectangle({ barLeft - 20.f * sx, barTop - 8.f * sy },
+			                        { barW + 40.f * sx, barH + 16.f * sy },
+			                        *assets.barBg, 0.f, (float)assets.barBg->getWidth(),
+			                        0.f, (float)assets.barBg->getHeight(),
+			                        Color(1.f, 1.f, 1.f, 1.f), 100);
 
-		// Foreground fill
+		// The bar itself (filled portion grows to the right)
 		const float ratio = std::clamp(currentScore, 0.f, 1.f);
-		if (ratio > 0.f)
+		if (assets.bar && ratio > 0.f)
 		{
-			text.drawSolidRect(renderer, barLeft, barTop, barW * ratio, barH,
-			                   Color(1.f, 0.95f, 0.35f, 0.9f), 101);
+			const int texW = assets.bar->getWidth();
+			drawTexStretched(renderer, assets.bar, barLeft, barTop,
+			                 barW * ratio, barH, 102,
+			                 0.f, texW * ratio);
 		}
 
-		// Rank markers
+		// Rank tick marks strip (covers the whole bar length)
+		if (assets.bars)
+		{
+			renderer->drawRectangle({ barLeft, barTop }, { barW, barH },
+			                        *assets.bars, 0.f, (float)assets.bars->getWidth(),
+			                        0.f, (float)assets.bars->getHeight(),
+			                        Color(1.f, 1.f, 1.f, 1.f), 103);
+		}
+
+		// SCORE label on the left of the bar
+		if (assets.scoreLabel)
+		{
+			const float w = 180.f * sx;
+			const float h = 40.f * sy;
+			renderer->drawRectangle({ barLeft - w - 10.f * sx, barTop - 4.f * sy },
+			                        { w, h + 8.f * sy },
+			                        *assets.scoreLabel, 0.f, (float)assets.scoreLabel->getWidth(),
+			                        0.f, (float)assets.scoreLabel->getHeight(),
+			                        Color(1.f, 1.f, 1.f, 1.f), 103);
+		}
+
+		// Current rank glyph over/above the bar
+		Texture* rank = assets.rankD;
+		if (ratio >= RANK_S) rank = assets.rankS;
+		else if (ratio >= RANK_A) rank = assets.rankA;
+		else if (ratio >= RANK_B) rank = assets.rankB;
+		else if (ratio >= RANK_C) rank = assets.rankC;
+		if (rank)
+		{
+			const float rw = 70.f * sx;
+			const float rh = 70.f * sy;
+			renderer->drawRectangle({ barLeft + barW + 14.f * sx, barTop - 20.f * sy },
+			                        { rw, rh },
+			                        *rank, 0.f, (float)rank->getWidth(),
+			                        0.f, (float)rank->getHeight(),
+			                        Color(1.f, 1.f, 1.f, 1.f), 104);
+		}
+	}
+
+	void Overlay::drawComboAssets(Renderer* renderer, float sx, float sy)
+	{
+		if (currentCombo <= 0) return;
+
+		// Render digits right-to-left from the center-x
+		char buf[16];
+		std::snprintf(buf, sizeof(buf), "%d", currentCombo);
+		const int len = (int)std::strlen(buf);
+
+		const float digitH = COMBO_DIGIT_SIZE * std::min(sx, sy);
+		const float digitAdv = COMBO_DIGIT_ADV * std::min(sx, sy);
+		const float totalW = digitAdv * len;
+		const float cy = COMBO_DIGIT_Y * sy;
+		const float startX = COMBO_CENTER_X * sx - totalW * 0.5f;
+
+		for (int i = 0; i < len; ++i)
+		{
+			char c = buf[i];
+			int d = c - '0';
+			if (d < 0 || d > 9) continue;
+			Texture* t = assets.comboDigit[d];
+			if (!t) continue;
+
+			const float aspect = (float)t->getWidth() / (float)t->getHeight();
+			const float w = digitH * aspect;
+			const float cx = startX + digitAdv * i + digitAdv * 0.5f;
+			drawTexCentered(renderer, t, cx, cy + digitH * 0.5f, w, digitH, 110);
+		}
+
+		// COMBO label beneath the digits
+		if (assets.comboLabel)
+		{
+			const float lw = COMBO_LABEL_W * std::min(sx, sy);
+			const float lh = COMBO_LABEL_H * std::min(sx, sy);
+			const float cx = COMBO_CENTER_X * sx;
+			const float cy2 = COMBO_LABEL_Y * sy;
+			drawTexCentered(renderer, assets.comboLabel, cx, cy2, lw, lh, 110);
+		}
+	}
+
+	void Overlay::drawJudgmentAsset(Renderer* renderer, float sx, float sy)
+	{
+		if (judgmentFlashTimer <= 0.f) return;
+		Texture* t = assets.judgePerfect;
+		if (!t) return;
+
+		float a = judgmentFlashTimer / JUDGE_DURATION;
+		a = std::clamp(a, 0.f, 1.f);
+		// Quick pop: scale goes 0.9 -> 1.0 in first 40% of the lifetime.
+		float lifeT = 1.f - a;
+		float scale = 0.9f + 0.1f * std::min(1.f, lifeT / 0.4f);
+
+		const float w = JUDGE_WIDTH * sx * scale;
+		const float h = JUDGE_HEIGHT * sy * scale;
+		const float cx = JUDGE_X * sx;
+		const float cy = JUDGE_Y * sy;
+		drawTexCentered(renderer, t, cx, cy, w, h, 115, a);
+	}
+
+	void Overlay::drawApVideo(Renderer* renderer, float /*sx*/, float /*sy*/,
+	                          float vpW, float vpH)
+	{
+		if (!allPerfectTriggered || !apVideo.isOpen()) return;
+
+		apVideo.setTime(allPerfectTimer);
+
+		unsigned int texId = apVideo.getGLTexture();
+		if (!texId) return;
+
+		// Draw as a full-screen quad. We bypass the Texture wrapper and push
+		// a raw quad with the video's GL texture.
+		std::array<DirectX::XMFLOAT4, 4> pos{
+			DirectX::XMFLOAT4{ vpW, 0.f,   0.f, 1.f },
+			DirectX::XMFLOAT4{ vpW, vpH,   0.f, 1.f },
+			DirectX::XMFLOAT4{ 0.f, vpH,   0.f, 1.f },
+			DirectX::XMFLOAT4{ 0.f, 0.f,   0.f, 1.f },
+		};
+		std::array<DirectX::XMFLOAT4, 4> uv{
+			DirectX::XMFLOAT4{ 1.f, 0.f, 0.f, 0.f },
+			DirectX::XMFLOAT4{ 1.f, 1.f, 0.f, 0.f },
+			DirectX::XMFLOAT4{ 0.f, 1.f, 0.f, 0.f },
+			DirectX::XMFLOAT4{ 0.f, 0.f, 0.f, 0.f },
+		};
+		DirectX::XMFLOAT4 color{ 1.f, 1.f, 1.f, 1.f };
+		renderer->pushQuad(pos, uv, DirectX::XMMatrixIdentity(), color, (int)texId, 200);
+	}
+
+	// ---------------------------------------------------------------------
+	// Fallback (self-drawn) helpers — used when res/overlay/ is empty
+	// ---------------------------------------------------------------------
+
+	void Overlay::drawScoreBarFallback(Renderer* renderer, float sx, float sy)
+	{
+		const float barLeft = (BAR_CENTER_X - BAR_WIDTH * 0.5f) * sx;
+		const float barTop  = BAR_Y * sy;
+		const float barW    = BAR_WIDTH * sx;
+		const float barH    = BAR_HEIGHT * sy;
+
+		text.drawSolidRect(renderer, barLeft, barTop, barW, barH,
+		                   Color(0.f, 0.f, 0.f, 0.55f), 100);
+		const float ratio = std::clamp(currentScore, 0.f, 1.f);
+		if (ratio > 0.f)
+			text.drawSolidRect(renderer, barLeft, barTop, barW * ratio, barH,
+			                   Color(1.f, 0.95f, 0.35f, 0.9f), 101);
+
 		auto marker = [&](float pos) {
 			const float x = barLeft + barW * pos;
 			const float lineW = 2.f * sx;
@@ -181,121 +350,52 @@ namespace MikuMikuWorld
 			                   lineW, barH + 4.f * sy,
 			                   Color(1.f, 1.f, 1.f, 0.6f), 102);
 		};
-		marker(RANK_C);
-		marker(RANK_B);
-		marker(RANK_A);
-		marker(RANK_S);
-
-		// Bar outline on top + bottom
-		text.drawSolidRect(renderer, barLeft, barTop - 1.f * sy, barW, 1.f * sy,
-		                   Color(1.f, 1.f, 1.f, 0.35f), 103);
-		text.drawSolidRect(renderer, barLeft, barTop + barH, barW, 1.f * sy,
-		                   Color(1.f, 1.f, 1.f, 0.35f), 103);
+		marker(RANK_C); marker(RANK_B); marker(RANK_A); marker(RANK_S);
 	}
 
-	void Overlay::drawComboShapes(Renderer* /*renderer*/, float /*sx*/, float /*sy*/)
-	{
-		// No shape components for combo; the digit text does all the work.
-	}
-
-	void Overlay::drawComboTexts(Renderer* renderer, float sx, float sy)
+	void Overlay::drawComboTextFallback(Renderer* renderer, float sx, float sy)
 	{
 		if (currentCombo <= 0) return;
-
 		char buf[16];
 		std::snprintf(buf, sizeof(buf), "%d", currentCombo);
-
-		const float digitScale = 108.f / 64.f * std::min(sx, sy);
-		const Color digitColor(1.f, 1.f, 1.f, 0.95f);
-		text.drawText(renderer, buf, COMBO_X * sx, COMBO_Y * sy,
-		              digitScale, digitColor, 120, TextAlign::Right);
-
-		const float labelScale = 36.f / 64.f * std::min(sx, sy);
-		const Color labelColor(1.f, 1.f, 1.f, 0.7f);
-		text.drawText(renderer, "COMBO", COMBO_X * sx, COMBO_LABEL_Y * sy,
-		              labelScale, labelColor, 120, TextAlign::Right);
-	}
-
-	void Overlay::drawShapes(Renderer* renderer, float vpWidth, float vpHeight)
-	{
-		if (!isInitialized() || vpWidth <= 0.f || vpHeight <= 0.f) return;
-
-		const float sx = vpWidth / LAYOUT_WIDTH;
-		const float sy = vpHeight / LAYOUT_HEIGHT;
-
-		// Jacket frame drawn as a shape so it appears even when no image is attached.
-		const float fx = JACKET_X * sx;
-		const float fy = JACKET_Y * sy;
-		const float fw = JACKET_SIZE * sx;
-		const float fh = JACKET_SIZE * sy;
-		text.drawSolidRect(renderer, fx - 3.f * sx, fy - 3.f * sy,
-		                   fw + 6.f * sx, fh + 6.f * sy,
-		                   Color(1.f, 1.f, 1.f, 0.35f), 90);
-		text.drawSolidRect(renderer, fx, fy, fw, fh,
-		                   Color(0.f, 0.f, 0.f, 0.5f), 91);
-
-		drawScoreBar(renderer, sx, sy);
-		drawComboShapes(renderer, sx, sy);
-	}
-
-	void Overlay::drawTexts(Renderer* renderer, float vpWidth, float vpHeight,
-	                        const ScoreContext& context)
-	{
-		if (!isInitialized() || vpWidth <= 0.f || vpHeight <= 0.f) return;
-
-		const float sx = vpWidth / LAYOUT_WIDTH;
-		const float sy = vpHeight / LAYOUT_HEIGHT;
-
-		// Title / artist, drawn with clipped layout — long strings simply overflow;
-		// the jacket area gives a visual bound.
 		const float unit = std::min(sx, sy);
-		const Color titleColor(1.f, 1.f, 1.f, 0.95f);
-		const Color artistColor(1.f, 1.f, 1.f, 0.75f);
-
-		if (!context.workingData.title.empty())
-		{
-			const float titleScale = 48.f / 64.f * unit;
-			text.drawText(renderer, context.workingData.title,
-			              TITLE_X * sx, TITLE_Y * sy,
-			              titleScale, titleColor, 120, TextAlign::Left);
-		}
-		if (!context.workingData.artist.empty())
-		{
-			const float artistScale = 30.f / 64.f * unit;
-			text.drawText(renderer, context.workingData.artist,
-			              TITLE_X * sx, ARTIST_Y * sy,
-			              artistScale, artistColor, 120, TextAlign::Left);
-		}
-
-		drawComboTexts(renderer, sx, sy);
-
-		// Judgment flash: PERFECT fading out after each hit.
-		if (judgmentFlashTimer > 0.f)
-		{
-			float alpha = judgmentFlashTimer / JUDGE_DURATION;
-			alpha = std::clamp(alpha, 0.f, 1.f);
-			const float jScale = 72.f / 64.f * unit;
-			text.drawText(renderer, "PERFECT",
-			              JUDGE_X * sx, JUDGE_Y * sy,
-			              jScale, Color(1.f, 0.95f, 0.35f, alpha),
-			              125, TextAlign::Center);
-		}
-
-		// ALL PERFECT: blinking after the last note cleared.
-		if (allPerfectTriggered)
-		{
-			const float pulse = 0.5f + 0.5f * std::sin(allPerfectTimer * 6.283185f);
-			const float hue = std::fmod(allPerfectTimer * 0.4f, 1.f);
-			const float r = 0.5f + 0.5f * std::sin(hue * 6.283185f);
-			const float g = 0.5f + 0.5f * std::sin(hue * 6.283185f + 2.094395f);
-			const float b = 0.5f + 0.5f * std::sin(hue * 6.283185f + 4.188790f);
-			const float apScale = 120.f / 64.f * unit;
-			text.drawText(renderer, "ALL PERFECT",
-			              AP_X * sx, AP_Y * sy,
-			              apScale, Color(r, g, b, 0.55f + 0.45f * pulse),
-			              130, TextAlign::Center);
-		}
+		const float digitScale = 108.f / 64.f * unit;
+		text.drawText(renderer, buf, COMBO_CENTER_X * sx, COMBO_DIGIT_Y * sy,
+		              digitScale, Color(1.f, 1.f, 1.f, 0.95f), 120, TextAlign::Right);
+		const float labelScale = 36.f / 64.f * unit;
+		text.drawText(renderer, "COMBO", COMBO_CENTER_X * sx, COMBO_LABEL_Y * sy,
+		              labelScale, Color(1.f, 1.f, 1.f, 0.7f), 120, TextAlign::Right);
 	}
+
+	void Overlay::drawJudgmentTextFallback(Renderer* renderer, float sx, float sy)
+	{
+		if (judgmentFlashTimer <= 0.f) return;
+		float alpha = std::clamp(judgmentFlashTimer / JUDGE_DURATION, 0.f, 1.f);
+		const float unit = std::min(sx, sy);
+		const float jScale = 72.f / 64.f * unit;
+		text.drawText(renderer, "PERFECT", JUDGE_X * sx, JUDGE_Y * sy,
+		              jScale, Color(1.f, 0.95f, 0.35f, alpha), 125, TextAlign::Center);
+	}
+
+	void Overlay::drawAllPerfectTextFallback(Renderer* renderer, float sx, float sy)
+	{
+		if (!allPerfectTriggered) return;
+		const float unit = std::min(sx, sy);
+		const float pulse = 0.5f + 0.5f * std::sin(allPerfectTimer * 6.283185f);
+		const float hue = std::fmod(allPerfectTimer * 0.4f, 1.f);
+		const float r = 0.5f + 0.5f * std::sin(hue * 6.283185f);
+		const float g = 0.5f + 0.5f * std::sin(hue * 6.283185f + 2.094395f);
+		const float b = 0.5f + 0.5f * std::sin(hue * 6.283185f + 4.188790f);
+		const float apScale = 120.f / 64.f * unit;
+		text.drawText(renderer, "ALL PERFECT",
+		              960.f * sx, 360.f * sy,
+		              apScale, Color(r, g, b, 0.55f + 0.45f * pulse),
+		              130, TextAlign::Center);
+	}
+
+	// ---------------------------------------------------------------------
+	// Pass entry points
+	// ---------------------------------------------------------------------
 
 	void Overlay::drawJacketPass(Renderer* renderer, float vpWidth, float vpHeight,
 	                             const Jacket& jacket)
@@ -320,14 +420,93 @@ namespace MikuMikuWorld
 		const float sx = vpWidth / LAYOUT_WIDTH;
 		const float sy = vpHeight / LAYOUT_HEIGHT;
 
-		const float x = JACKET_X * sx;
-		const float y = JACKET_Y * sy;
-		const float w = JACKET_SIZE * sx;
-		const float h = JACKET_SIZE * sy;
+		const float x = 36.f * sx;
+		const float y = 36.f * sy;
+		const float w = 180.f * sx;
+		const float h = 180.f * sy;
 
 		renderer->drawRectangle({ x, y }, { w, h }, t,
 		                        0.f, (float)t.getWidth(),
 		                        0.f, (float)t.getHeight(),
 		                        Color(1.f, 1.f, 1.f, 1.f), 92);
+	}
+
+	void Overlay::drawAssetPass(Renderer* renderer, float vpWidth, float vpHeight)
+	{
+		if (vpWidth <= 0.f || vpHeight <= 0.f) return;
+		const float sx = vpWidth / LAYOUT_WIDTH;
+		const float sy = vpHeight / LAYOUT_HEIGHT;
+
+		if (assets.hasCore())
+		{
+			if (isApPlaying())
+			{
+				// Let the AP takeover carry the moment — skip lower-priority HUD.
+				return;
+			}
+			drawScoreBarAssets(renderer, sx, sy);
+			drawComboAssets(renderer, sx, sy);
+			drawJudgmentAsset(renderer, sx, sy);
+		}
+	}
+
+	void Overlay::drawAdditivePass(Renderer* renderer, float vpWidth, float vpHeight)
+	{
+		if (vpWidth <= 0.f || vpHeight <= 0.f) return;
+		const float sx = vpWidth / LAYOUT_WIDTH;
+		const float sy = vpHeight / LAYOUT_HEIGHT;
+		drawApVideo(renderer, sx, sy, vpWidth, vpHeight);
+	}
+
+	void Overlay::drawTextPass(Renderer* renderer, float vpWidth, float vpHeight,
+	                           const ScoreContext& context)
+	{
+		if (!isInitialized() || vpWidth <= 0.f || vpHeight <= 0.f) return;
+		const float sx = vpWidth / LAYOUT_WIDTH;
+		const float sy = vpHeight / LAYOUT_HEIGHT;
+
+		// Jacket caption (title + artist) stays as text.
+		const float unit = std::min(sx, sy);
+		if (!context.workingData.title.empty())
+		{
+			const float titleScale = 40.f / 64.f * unit;
+			text.drawText(renderer, context.workingData.title,
+			              232.f * sx, 56.f * sy,
+			              titleScale, Color(1.f, 1.f, 1.f, 0.95f), 120, TextAlign::Left);
+		}
+		if (!context.workingData.artist.empty())
+		{
+			const float artistScale = 26.f / 64.f * unit;
+			text.drawText(renderer, context.workingData.artist,
+			              232.f * sx, 118.f * sy,
+			              artistScale, Color(1.f, 1.f, 1.f, 0.75f), 120, TextAlign::Left);
+		}
+
+		// Score percentage to the right of the bar — fade out once AP starts.
+		{
+			const float apFade = allPerfectTriggered
+				? std::clamp(1.f - allPerfectTimer / 0.5f, 0.f, 1.f)
+				: 1.f;
+			if (apFade > 0.01f)
+			{
+				char scoreBuf[16];
+				int pct = (int)std::round(currentScore * 100.f);
+				std::snprintf(scoreBuf, sizeof(scoreBuf), "%d", pct);
+				const float scale = 36.f / 64.f * unit;
+				const float x = (BAR_CENTER_X + BAR_WIDTH * 0.5f - 120.f) * sx;
+				const float y = (BAR_Y - 40.f) * sy;
+				text.drawText(renderer, scoreBuf, x, y, scale,
+				              Color(1.f, 1.f, 1.f, 0.85f * apFade), 120, TextAlign::Right);
+			}
+		}
+
+		// When no asset pack is present, draw the self-made fallbacks.
+		if (!assets.hasCore())
+		{
+			drawScoreBarFallback(renderer, sx, sy);
+			drawComboTextFallback(renderer, sx, sy);
+			drawJudgmentTextFallback(renderer, sx, sy);
+			drawAllPerfectTextFallback(renderer, sx, sy);
+		}
 	}
 }

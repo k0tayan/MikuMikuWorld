@@ -371,3 +371,6 @@ build/
 *.xcworkspace/
 
 .vscode
+
+# Copyrighted Project Sekai overlay assets — user-provided, never tracked
+MikuMikuWorld/res/overlay/

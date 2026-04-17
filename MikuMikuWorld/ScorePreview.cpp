@@ -315,7 +315,9 @@ namespace MikuMikuWorld
 		if (!overlayInitAttempted)
 		{
 			overlayInitAttempted = true;
-			overlay.init(Application::getAppDir() + "res/fonts/NotoSansCJK-Regular.ttc");
+			overlay.init(Application::getAppDir() + "res/fonts/NotoSansCJK-Regular.ttc",
+			             Application::getAppDir() + "res/overlay/",
+			             Application::getUserDataDir() + "overlay_cache/ap");
 		}
 		// Cheap structural signature: note count usually changes when the score is edited.
 		int overlayRevision = (int)context.score.notes.size();
@@ -438,20 +440,26 @@ namespace MikuMikuWorld
 
 			const auto overlayProjection = Camera::getOffCenterOrthographicProjection(0.f, viewportWidth, viewportHeight, 0.f);
 
-			// Jacket image is RGBA, so it needs the basic2d shader; draw it first.
+			// Pass 1: RGBA assets (jacket, score bar parts, combo digits, judgement) with standard alpha blending
 			shader->use();
 			shader->setMatrix4("projection", overlayProjection);
 			renderer->beginBatch();
 			overlay.drawJacketPass(renderer, viewportWidth, viewportHeight, context.workingData.jacket);
+			overlay.drawAssetPass(renderer, viewportWidth, viewportHeight);
 			renderer->endBatch();
 
+			// Pass 2: AP video — rendered additively since the source has a black background.
+			renderer->beginBatch();
+			overlay.drawAdditivePass(renderer, viewportWidth, viewportHeight);
+			renderer->endBatchWithBlending(GL_ONE, GL_ONE, GL_ONE, GL_ONE);
+
+			// Pass 3: R8 font atlas (title, artist, fallbacks, score percent)
 			if (textShader)
 			{
 				textShader->use();
 				textShader->setMatrix4("projection", overlayProjection);
 				renderer->beginBatch();
-				overlay.drawShapes(renderer, viewportWidth, viewportHeight);
-				overlay.drawTexts(renderer, viewportWidth, viewportHeight, context);
+				overlay.drawTextPass(renderer, viewportWidth, viewportHeight, context);
 				renderer->endBatch();
 			}
 		}
