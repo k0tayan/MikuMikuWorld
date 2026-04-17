@@ -1,10 +1,14 @@
 #include "Overlay.h"
 #include "../Score.h"
 #include "../ScoreContext.h"
+#include "../Jacket.h"
+#include "../ResourceManager.h"
+#include "../Rendering/Texture.h"
 #include "../Constants.h"
 #include "../Tempo.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace MikuMikuWorld
@@ -22,6 +26,20 @@ namespace MikuMikuWorld
 		constexpr float COMBO_X      = 1780.f;
 		constexpr float COMBO_Y      = 520.f;
 		constexpr float COMBO_LABEL_Y = 620.f;
+
+		constexpr float JACKET_X     = 36.f;
+		constexpr float JACKET_Y     = 36.f;
+		constexpr float JACKET_SIZE  = 180.f;
+		constexpr float TITLE_X      = 232.f;
+		constexpr float TITLE_Y      = 60.f;
+		constexpr float ARTIST_Y     = 120.f;
+
+		constexpr float JUDGE_X      = 960.f;
+		constexpr float JUDGE_Y      = 720.f;
+		constexpr float JUDGE_DURATION = 0.35f;
+
+		constexpr float AP_X         = 960.f;
+		constexpr float AP_Y         = 360.f;
 
 		// Rank boundaries borrowed from pjsekai-overlay-APPEND (v3 gauge), normalized.
 		constexpr float RANK_C = 746.f  / 1650.f;
@@ -205,18 +223,111 @@ namespace MikuMikuWorld
 		const float sx = vpWidth / LAYOUT_WIDTH;
 		const float sy = vpHeight / LAYOUT_HEIGHT;
 
+		// Jacket frame drawn as a shape so it appears even when no image is attached.
+		const float fx = JACKET_X * sx;
+		const float fy = JACKET_Y * sy;
+		const float fw = JACKET_SIZE * sx;
+		const float fh = JACKET_SIZE * sy;
+		text.drawSolidRect(renderer, fx - 3.f * sx, fy - 3.f * sy,
+		                   fw + 6.f * sx, fh + 6.f * sy,
+		                   Color(1.f, 1.f, 1.f, 0.35f), 90);
+		text.drawSolidRect(renderer, fx, fy, fw, fh,
+		                   Color(0.f, 0.f, 0.f, 0.5f), 91);
+
 		drawScoreBar(renderer, sx, sy);
 		drawComboShapes(renderer, sx, sy);
 	}
 
 	void Overlay::drawTexts(Renderer* renderer, float vpWidth, float vpHeight,
-	                        const ScoreContext& /*context*/)
+	                        const ScoreContext& context)
 	{
 		if (!isInitialized() || vpWidth <= 0.f || vpHeight <= 0.f) return;
 
 		const float sx = vpWidth / LAYOUT_WIDTH;
 		const float sy = vpHeight / LAYOUT_HEIGHT;
 
+		// Title / artist, drawn with clipped layout — long strings simply overflow;
+		// the jacket area gives a visual bound.
+		const float unit = std::min(sx, sy);
+		const Color titleColor(1.f, 1.f, 1.f, 0.95f);
+		const Color artistColor(1.f, 1.f, 1.f, 0.75f);
+
+		if (!context.workingData.title.empty())
+		{
+			const float titleScale = 48.f / 64.f * unit;
+			text.drawText(renderer, context.workingData.title,
+			              TITLE_X * sx, TITLE_Y * sy,
+			              titleScale, titleColor, 120, TextAlign::Left);
+		}
+		if (!context.workingData.artist.empty())
+		{
+			const float artistScale = 30.f / 64.f * unit;
+			text.drawText(renderer, context.workingData.artist,
+			              TITLE_X * sx, ARTIST_Y * sy,
+			              artistScale, artistColor, 120, TextAlign::Left);
+		}
+
 		drawComboTexts(renderer, sx, sy);
+
+		// Judgment flash: PERFECT fading out after each hit.
+		if (judgmentFlashTimer > 0.f)
+		{
+			float alpha = judgmentFlashTimer / JUDGE_DURATION;
+			alpha = std::clamp(alpha, 0.f, 1.f);
+			const float jScale = 72.f / 64.f * unit;
+			text.drawText(renderer, "PERFECT",
+			              JUDGE_X * sx, JUDGE_Y * sy,
+			              jScale, Color(1.f, 0.95f, 0.35f, alpha),
+			              125, TextAlign::Center);
+		}
+
+		// ALL PERFECT: blinking after the last note cleared.
+		if (allPerfectTriggered)
+		{
+			const float pulse = 0.5f + 0.5f * std::sin(allPerfectTimer * 6.283185f);
+			const float hue = std::fmod(allPerfectTimer * 0.4f, 1.f);
+			const float r = 0.5f + 0.5f * std::sin(hue * 6.283185f);
+			const float g = 0.5f + 0.5f * std::sin(hue * 6.283185f + 2.094395f);
+			const float b = 0.5f + 0.5f * std::sin(hue * 6.283185f + 4.188790f);
+			const float apScale = 120.f / 64.f * unit;
+			text.drawText(renderer, "ALL PERFECT",
+			              AP_X * sx, AP_Y * sy,
+			              apScale, Color(r, g, b, 0.55f + 0.45f * pulse),
+			              130, TextAlign::Center);
+		}
+	}
+
+	void Overlay::drawJacketPass(Renderer* renderer, float vpWidth, float vpHeight,
+	                             const Jacket& jacket)
+	{
+		if (vpWidth <= 0.f || vpHeight <= 0.f) return;
+
+		const int texId = jacket.getTexID();
+		if (texId <= 0) return;
+
+		int texIndex = -1;
+		for (int i = 0; i < (int)ResourceManager::textures.size(); ++i)
+		{
+			if ((int)ResourceManager::textures[i].getID() == texId)
+			{
+				texIndex = i;
+				break;
+			}
+		}
+		if (texIndex < 0) return;
+		const Texture& t = ResourceManager::textures[texIndex];
+
+		const float sx = vpWidth / LAYOUT_WIDTH;
+		const float sy = vpHeight / LAYOUT_HEIGHT;
+
+		const float x = JACKET_X * sx;
+		const float y = JACKET_Y * sy;
+		const float w = JACKET_SIZE * sx;
+		const float h = JACKET_SIZE * sy;
+
+		renderer->drawRectangle({ x, y }, { w, h }, t,
+		                        0.f, (float)t.getWidth(),
+		                        0.f, (float)t.getHeight(),
+		                        Color(1.f, 1.f, 1.f, 1.f), 92);
 	}
 }

@@ -9,6 +9,7 @@ namespace MikuMikuWorld
 {
 	struct Score;
 	struct ScoreContext;
+	class Jacket;
 
 	class Overlay
 	{
@@ -22,6 +23,8 @@ namespace MikuMikuWorld
 		void update(const Score& score, float currentTime, bool isPlaying);
 		void reset();
 
+		void drawJacketPass(Renderer* renderer, float vpWidth, float vpHeight,
+		                    const Jacket& jacket);
 		void drawShapes(Renderer* renderer, float vpWidth, float vpHeight);
 		void drawTexts(Renderer* renderer, float vpWidth, float vpHeight,
 		               const ScoreContext& context);

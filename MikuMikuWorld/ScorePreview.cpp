@@ -438,6 +438,13 @@ namespace MikuMikuWorld
 
 			const auto overlayProjection = Camera::getOffCenterOrthographicProjection(0.f, viewportWidth, viewportHeight, 0.f);
 
+			// Jacket image is RGBA, so it needs the basic2d shader; draw it first.
+			shader->use();
+			shader->setMatrix4("projection", overlayProjection);
+			renderer->beginBatch();
+			overlay.drawJacketPass(renderer, viewportWidth, viewportHeight, context.workingData.jacket);
+			renderer->endBatch();
+
 			if (textShader)
 			{
 				textShader->use();
