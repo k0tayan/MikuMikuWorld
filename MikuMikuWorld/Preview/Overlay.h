@@ -64,6 +64,9 @@ namespace MikuMikuWorld
 		int   scoreDelta{ 0 };
 		float scoreDeltaAge{ 1000.f };
 
+		// Combo digit pop animation (resets to 0 whenever the count increments).
+		float comboPopAge{ 1000.f };
+
 		void buildTimeline(const Score& score);
 
 		// Asset-based draw helpers

@@ -44,9 +44,15 @@ namespace MikuMikuWorld
 		int scoreDigitMinus{ NO_TEX };
 		int scoreDigitMinusFill{ NO_TEX };
 
-		// Combo digits
+		// Combo digits — AP (all perfect) variant used for the perfect-play preview.
+		//   comboDigit      : p{d}.png — rainbow fill
+		//   comboDigitGlow  : b{d}.png — bright backglow (additive)
+		//   comboLabel      : pt.png  — AP "COMBO" tag
+		//   comboLabelGlow  : pe.png  — glow behind the tag
 		int comboDigit[10]{ NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX };
+		int comboDigitGlow[10]{ NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX };
 		int comboLabel{ NO_TEX };
+		int comboLabelGlow{ NO_TEX };
 
 		// Judgment
 		int judgePerfect{ NO_TEX };

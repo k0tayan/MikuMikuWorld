@@ -25,13 +25,16 @@ namespace MikuMikuWorld
 		constexpr float BAR_WIDTH        = 1650.f;
 		constexpr float BAR_HEIGHT       = 40.f;
 
-		constexpr float COMBO_CENTER_X   = 1660.f;
-		constexpr float COMBO_DIGIT_Y    = 460.f;
-		constexpr float COMBO_LABEL_Y    = 620.f;
-		constexpr float COMBO_DIGIT_SIZE = 120.f;  // Reference height of a digit in layout space.
-		constexpr float COMBO_DIGIT_ADV  = 96.f;   // Advance between digits.
-		constexpr float COMBO_LABEL_W    = 180.f;
-		constexpr float COMBO_LABEL_H    = 50.f;
+		// Combo parent at .exo (X=673.5, Y=-62.5) with 拡大率 150% on 1920x1080
+		//   → canvas center (960+673.5, 540-62.5) = (1633.5, 477.5)
+		constexpr float COMBO_COMP_CX    = 1633.5f;
+		constexpr float COMBO_COMP_CY    =  477.5f;
+		constexpr float COMBO_POS_SCALE  = 1.5f;   // tempbuffer -> canvas pixel
+		constexpr float COMBO_DIGIT_ADV  = 72.f;   // tempbuffer digit advance
+		constexpr float COMBO_DIGIT_BASE = 0.70f;  // obj.draw scale for digits
+		constexpr float COMBO_LABEL_SCALE = 0.67f; // obj.draw scale for nt.png
+		constexpr float COMBO_LABEL_TB_Y = -67.f;  // tempbuffer Y offset for tag
+		constexpr float COMBO_FPS        = 60.f;
 
 		// Parent object at (X=0, Y=127.5) with 拡大率 150% on 1920x1080 canvas
 		//   → canvas center (960, 540+127.5) = (960, 667.5).
@@ -94,6 +97,7 @@ namespace MikuMikuWorld
 		nextIdx = 0;
 		scoreDelta = 0;
 		scoreDeltaAge = 1000.f;
+		comboPopAge = 1000.f;
 	}
 
 	void Overlay::buildTimeline(const Score& score)
@@ -157,6 +161,7 @@ namespace MikuMikuWorld
 		{
 			const auto& n = timeline[nextIdx];
 			++currentCombo;
+			comboPopAge = 0.f;
 			if (totalWeight > 0.f)
 				currentScore = std::min(1.f, currentScore + n.weight / totalWeight);
 			judgmentFlashTimer = JUDGE_DURATION;
@@ -175,6 +180,7 @@ namespace MikuMikuWorld
 			scoreDeltaAge = 0.f;
 		}
 		scoreDeltaAge += dt;
+		comboPopAge += dt;
 
 		if (judgmentFlashTimer > 0.f) judgmentFlashTimer = std::max(0.f, judgmentFlashTimer - dt);
 		if (allPerfectTriggered) allPerfectTimer += dt;
@@ -408,39 +414,66 @@ namespace MikuMikuWorld
 	{
 		if (currentCombo <= 0) return;
 
-		// Render digits right-to-left from the center-x
+		const float compCX = COMBO_COMP_CX * sx;
+		const float compCY = COMBO_COMP_CY * sy;
+
+		// AP pulse — math.min(1, (sin(time * pi * 4/3) + 1) / 2). Pulses 0→1 with
+		// period 1.5s. Used as the alpha of the backglow / label glow layers.
+		const float apAlpha = std::min(1.f,
+			(std::sin(lastScoreEpoch * 3.14159265f * 4.f / 3.f) + 1.f) * 0.5f);
+
+		// "COMBO" tag — AP branch draws pe.png (glow) under pt.png.
+		// pe:  obj.draw(0, -70, 0, 0.67, ap_alpha)
+		// pt:  obj.draw(0, -67, 0, 0.67)
+		auto drawTag = [&](int texIdx, float tbY, int z, float alpha)
+		{
+			const Texture* t = OverlayAssets::get(texIdx);
+			if (!t) return;
+			const float w = (float)t->getWidth()  * COMBO_LABEL_SCALE * COMBO_POS_SCALE * sx;
+			const float h = (float)t->getHeight() * COMBO_LABEL_SCALE * COMBO_POS_SCALE * sy;
+			const float cx = compCX;
+			const float cy = compCY + tbY * COMBO_POS_SCALE * sy;
+			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
+			                        *t, 0.f, (float)t->getWidth(),
+			                        0.f, (float)t->getHeight(),
+			                        Color(1.f, 1.f, 1.f, alpha), z);
+		};
+		drawTag(assets.comboLabelGlow, -70.f, 109, apAlpha);
+		drawTag(assets.comboLabel,     -67.f, 110, 1.f);
+
+		// Digits — obj.draw(shift * 72 * shift_fax, 0, 0, 0.70 * shift_fax).
+		//   shift      = -(len/2) + i - 0.5  (i = 1..len, 1-indexed in the script)
+		//   shift_fax  = min(1, progress_frames/8 * 0.5 + 0.5), grows 0.5 → 1.0
 		char buf[16];
 		std::snprintf(buf, sizeof(buf), "%d", currentCombo);
 		const int len = (int)std::strlen(buf);
 
-		const float digitH = COMBO_DIGIT_SIZE * std::min(sx, sy);
-		const float digitAdv = COMBO_DIGIT_ADV * std::min(sx, sy);
-		const float totalW = digitAdv * len;
-		const float cy = COMBO_DIGIT_Y * sy;
-		const float startX = COMBO_CENTER_X * sx - totalW * 0.5f;
+		const float progressFrames = comboPopAge * COMBO_FPS;
+		const float shiftFax = std::min(1.f, progressFrames / 8.f * 0.5f + 0.5f);
+		const float digitScale = COMBO_DIGIT_BASE * shiftFax;
+
+		auto drawDigit = [&](int texIdx, int i, int z, float alpha)
+		{
+			const Texture* t = OverlayAssets::get(texIdx);
+			if (!t) return;
+			const float shift = -(len / 2.f) + (i + 1) - 0.5f;
+			const float tbX = shift * COMBO_DIGIT_ADV * shiftFax;
+			const float cx = compCX + tbX * COMBO_POS_SCALE * sx;
+			const float cy = compCY;
+			const float w  = (float)t->getWidth()  * digitScale * COMBO_POS_SCALE * sx;
+			const float h  = (float)t->getHeight() * digitScale * COMBO_POS_SCALE * sy;
+			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
+			                        *t, 0.f, (float)t->getWidth(),
+			                        0.f, (float)t->getHeight(),
+			                        Color(1.f, 1.f, 1.f, alpha), z);
+		};
 
 		for (int i = 0; i < len; ++i)
 		{
-			char c = buf[i];
-			int d = c - '0';
+			int d = buf[i] - '0';
 			if (d < 0 || d > 9) continue;
-			const Texture* t = OverlayAssets::get(assets.comboDigit[d]);
-			if (!t) continue;
-
-			const float aspect = (float)t->getWidth() / (float)t->getHeight();
-			const float w = digitH * aspect;
-			const float cx = startX + digitAdv * i + digitAdv * 0.5f;
-			drawTexCentered(renderer, t, cx, cy + digitH * 0.5f, w, digitH, 110);
-		}
-
-		// COMBO label beneath the digits
-		if (const Texture* lbl = OverlayAssets::get(assets.comboLabel))
-		{
-			const float lw = COMBO_LABEL_W * std::min(sx, sy);
-			const float lh = COMBO_LABEL_H * std::min(sx, sy);
-			const float cx = COMBO_CENTER_X * sx;
-			const float cy2 = COMBO_LABEL_Y * sy;
-			drawTexCentered(renderer, lbl, cx, cy2, lw, lh, 110);
+			drawDigit(assets.comboDigitGlow[d], i, 111, apAlpha);
+			drawDigit(assets.comboDigit[d],     i, 112, 1.f);
 		}
 	}
 
@@ -625,11 +658,12 @@ namespace MikuMikuWorld
 		std::snprintf(buf, sizeof(buf), "%d", currentCombo);
 		const float unit = std::min(sx, sy);
 		const float digitScale = 108.f / 64.f * unit;
-		text.drawText(renderer, buf, COMBO_CENTER_X * sx, COMBO_DIGIT_Y * sy,
-		              digitScale, Color(1.f, 1.f, 1.f, 0.95f), 120, TextAlign::Right);
+		const float cx = COMBO_COMP_CX * sx;
+		text.drawText(renderer, buf, cx, (COMBO_COMP_CY - 60.f) * sy,
+		              digitScale, Color(1.f, 1.f, 1.f, 0.95f), 120, TextAlign::Center);
 		const float labelScale = 36.f / 64.f * unit;
-		text.drawText(renderer, "COMBO", COMBO_CENTER_X * sx, COMBO_LABEL_Y * sy,
-		              labelScale, Color(1.f, 1.f, 1.f, 0.7f), 120, TextAlign::Right);
+		text.drawText(renderer, "COMBO", cx, (COMBO_COMP_CY - 120.f) * sy,
+		              labelScale, Color(1.f, 1.f, 1.f, 0.7f), 120, TextAlign::Center);
 	}
 
 	void Overlay::drawJudgmentTextFallback(Renderer* renderer, float sx, float sy)

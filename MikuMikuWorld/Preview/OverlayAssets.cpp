@@ -58,14 +58,20 @@ namespace MikuMikuWorld
 		scoreDigitMinus     = loadOne(scoreDigitDir + "s-.png");
 		scoreDigitMinusFill = loadOne(scoreDigitDir + "-.png");
 
+		// pjsekai sekai.obj2 AP-branch uses p{digit}.png (fill) + b{digit}.png
+		// (additive backglow) for digits, and pt.png + pe.png for the tag.
 		const std::string comboDir = overlayDir + "combo/";
 		for (int i = 0; i < 10; ++i)
 		{
 			char buf[32];
-			std::snprintf(buf, sizeof(buf), "p_%d.png", i);
+			std::snprintf(buf, sizeof(buf), "p%d.png", i);
 			comboDigit[i] = loadOne(comboDir + buf);
+
+			std::snprintf(buf, sizeof(buf), "b%d.png", i);
+			comboDigitGlow[i] = loadOne(comboDir + buf);
 		}
-		comboLabel = loadOne(comboDir + "p_c.png");
+		comboLabel     = loadOne(comboDir + "pt.png");
+		comboLabelGlow = loadOne(comboDir + "pe.png");
 
 		judgePerfect = loadOne(overlayDir + "judgement/judge_perfect.png");
 		judgeGreat   = loadOne(overlayDir + "judgement/judge_great.png");
