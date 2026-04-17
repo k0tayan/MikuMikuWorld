@@ -57,10 +57,20 @@ MikuMikuWorld.app/Contents/MacOS/MikuMikuWorld --render \
 
 ## 機能一覧：
 - Sliding Universal Score（\*.sus）ファイルの入出力。
+- Universal Sekai Chart（\*.usc）ファイルの部分的な読み込み（書き出し非対応。詳細は下記）。
 - BPM・拍子・ハイスピーの調整。
 - 最大1920分音符までのカスタム分割。
 - ノーツプリセットの作成・使用。
 - カスタマイズ可能なキーボードショートカット。
+
+### USC サポート（部分対応）
+USC ファイルは読み込み可能ですが、内部データモデルに対応物がないため以下は drop / フォールバックされます：
+- `damage` ノートはスキップ。
+- `GuideColor` / `FadeType` は無視。
+- `EaseInOut` / `EaseOutIn` は `Linear` にフォールバック。
+- `timeScaleGroup` の複数レイヤは単一のハイスピートラックに集約。
+
+USC への書き出しは未対応です。
 
 
 ## スクリーンショット：
