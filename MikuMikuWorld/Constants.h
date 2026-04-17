@@ -20,4 +20,5 @@ namespace MikuMikuWorld
 	constexpr const char* MMWS_EXTENSION		= ".mmws";
 	constexpr const char* JSON_EXTENSION		= ".json";
 	constexpr const char* GZ_JSON_EXTENSION		= ".json.gz";
+	constexpr const char* USC_EXTENSION			= ".usc";
 }

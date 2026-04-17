@@ -24,6 +24,10 @@ namespace MikuMikuWorld
 		{
 			return SerializeFormat::LvlDataFormat;
 		}
+		else if (hasExtension(filename, USC_EXTENSION))
+		{
+			return SerializeFormat::UscFormat;
+		}
 		return SerializeFormat::FormatCount;
 	}
 
@@ -44,6 +48,8 @@ namespace MikuMikuWorld
 			return IO::susFilter;
 		case SerializeFormat::LvlDataFormat:
 			return IO::lvlDatFilter;
+		case SerializeFormat::UscFormat:
+			return IO::uscFilter;
 		default:
 			return IO::allFilter;
 		}
@@ -59,6 +65,8 @@ namespace MikuMikuWorld
 			return "sus";
 		case SerializeFormat::LvlDataFormat:
 			return "json.gz";
+		case SerializeFormat::UscFormat:
+			return "usc";
 		default:
 			return "";
 		}

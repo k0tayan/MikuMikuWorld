@@ -339,9 +339,10 @@ namespace MikuMikuWorld
 		IO::FileDialog fileDialog{};
 		fileDialog.title = "Open Chart";
 		fileDialog.filters = {
-			IO::combineFilters("All Supported Files",{ IO::mmwsFilter, IO::susFilter }),
+			IO::combineFilters("All Supported Files",{ IO::mmwsFilter, IO::susFilter, IO::uscFilter }),
 			IO::mmwsFilter,
 			IO::susFilter,
+			IO::uscFilter,
 			// IO::lvlDatFilter, // Temporarily disable openning lvldata format
 			IO::allFilter
 		};
