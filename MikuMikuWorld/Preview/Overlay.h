@@ -107,7 +107,6 @@ namespace MikuMikuWorld
 		float hudAlpha{ 1.f };
 		void drawIntroBackground(Renderer* renderer, float sx, float sy, float videoTime);
 		void drawIntroStartGrad(Renderer* renderer, float sx, float sy, float videoTime);
-		void drawIntroWhiteFlash(Renderer* renderer, float sx, float sy, float videoTime);
 		void drawIntroCard(Renderer* renderer, float sx, float sy, float videoTime,
 		                   const Jacket& jacket);
 		void drawIntroText(Renderer* renderer, float sx, float sy, float videoTime);

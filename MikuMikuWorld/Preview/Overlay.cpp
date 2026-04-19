@@ -680,6 +680,23 @@ namespace MikuMikuWorld
 			if (frame >= 299.f) return 0.f;
 			return 1.f - (frame - 270.f) / 29.f;
 		}
+
+		// Object [5] in the .object: layer=3 frame=0..111 group control,
+		// X=43→0 Y=-43→0 with 減速 (deceleration). Slides the difficulty badge
+		// and difficulty text out from behind the jacket toward the bottom-left.
+		constexpr float DIFF_SLIDE_SPAN_FRAMES = 112.f;
+		struct ExoOffset { float x; float y; };
+		ExoOffset diffBadgeSlideOffset(float videoTime)
+		{
+			const float span = DIFF_SLIDE_SPAN_FRAMES;
+			const float frame = videoTime * 60.f;
+			if (frame >= span) return { 0.f, 0.f };
+			if (frame <= 0.f)  return { 43.f, -43.f };
+			float u = frame / span;
+			float eased = 1.f - (1.f - u) * (1.f - u);
+			float factor = 1.f - eased;
+			return { 43.f * factor, -43.f * factor };
+		}
 	}
 
 	void Overlay::drawIntroBackground(Renderer* renderer, float sx, float sy, float videoTime)
@@ -723,23 +740,6 @@ namespace MikuMikuWorld
 		drawWave(181.f, 300.f);
 	}
 
-	void Overlay::drawIntroWhiteFlash(Renderer* renderer, float sx, float sy, float videoTime)
-	{
-		// Object [27]: full-screen white, frames 1-60 fully opaque. Object [25] then
-		// drives a fade from frame 61 to 91 (30 frames) back to transparent. Keep
-		// the flash alive across the union so the fade is smooth.
-		const float frame = videoTime * 60.f;
-		if (frame < 1.f || frame >= 91.f) return;
-
-		float alpha = 1.f;
-		if (frame >= 61.f)
-			alpha = std::clamp(1.f - (frame - 61.f) / 30.f, 0.f, 1.f);
-
-		text.drawSolidRect(renderer, 0.f, 0.f,
-		                   LAYOUT_WIDTH * sx, LAYOUT_HEIGHT * sy,
-		                   Color(1.f, 1.f, 1.f, alpha), 180);
-	}
-
 	void Overlay::drawIntroCard(Renderer* renderer, float sx, float sy, float videoTime,
 	                            const Jacket& jacket)
 	{
@@ -747,14 +747,15 @@ namespace MikuMikuWorld
 		if (alpha <= 0.f) return;
 
 		// Difficulty badge (object [8]): pos (-661.5, 288), 拡大率 39.26% of 1024x1024.
-		// Acts as a colored backdrop for the jacket (rendered below it).
+		// Slides out from behind the jacket via group control [5] over 112 frames.
 		if (const Texture* t = OverlayAssets::get(assets.difficultyBg(introData.difficulty)))
 		{
+			const auto off = diffBadgeSlideOffset(videoTime);
 			const float target = 1024.f * 0.3926f;
 			const float w = target * sx;
 			const float h = target * sy;
-			const float cx = exoX(-661.5f) * sx;
-			const float cy = exoY(288.f)   * sy;
+			const float cx = exoX(-661.5f + off.x) * sx;
+			const float cy = exoY(288.f   + off.y) * sy;
 			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h }, *t,
 			                        0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
@@ -785,13 +786,15 @@ namespace MikuMikuWorld
 		const Color white(1.f, 1.f, 1.f, alpha);
 
 		// Difficulty text (main2 .object): pos (-855, 446), size 84, 拡大率 38%, left-top anchor.
+		// Shares the group control [5] slide-in with the difficulty badge.
 		{
 			std::string up;
 			up.reserve(introData.difficulty.size());
 			for (char c : introData.difficulty) up.push_back((char)std::toupper((unsigned char)c));
+			const auto off = diffBadgeSlideOffset(videoTime);
 			const float scale = 84.f * 0.38f / 64.f * unit;
 			text.drawText(renderer, up,
-			              exoX(-855.f) * sx, exoY(446.f) * sy,
+			              exoX(-855.f + off.x) * sx, exoY(446.f + off.y) * sy,
 			              scale, white, 122, TextAlign::Left);
 		}
 
@@ -910,7 +913,6 @@ namespace MikuMikuWorld
 		if (isIntroShowing(chartTime))
 		{
 			const float videoTime = chartTime + introOffset;
-			drawIntroWhiteFlash(renderer, sx, sy, videoTime);
 			drawIntroText(renderer, sx, sy, videoTime);
 		}
 	}
