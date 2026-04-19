@@ -72,6 +72,13 @@ namespace MikuMikuWorld
 			UI::endPropertyColumns();
 		}
 
+		if (ImGui::CollapsingHeader(IO::concat(ICON_FA_PLAY, getString("intro_animation"), " ").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			UI::beginPropertyColumns();
+			UI::addCheckboxProperty(getString("intro_enabled"), context.workingData.introEnabled);
+			UI::endPropertyColumns();
+		}
+
 		if (ImGui::CollapsingHeader(IO::concat(ICON_FA_VOLUME_UP, getString("audio"), " ").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			UI::beginPropertyColumns();

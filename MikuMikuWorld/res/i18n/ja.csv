@@ -102,6 +102,8 @@ notes_se, ノーツのSE
 visuals, ビジュアル
 preview_draw_toolbar, プレビューツールバーを描く
 preview_overlay, スコア/コンボのオーバーレイ演出
+intro_animation, イントロアニメーション
+intro_enabled, イントロアニメーションを再生する
 notes_speed, ノーツの速さ
 mirror_score, ミラー譜面
 flicks_animation, マーカーのアニメーション

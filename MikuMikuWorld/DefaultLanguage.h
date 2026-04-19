@@ -107,6 +107,8 @@ namespace MikuMikuWorld
 		{"visuals", "Visuals"},
 		{"preview_draw_toolbar", "Draw Preview Toolbar"},
 		{"preview_overlay", "Score / Combo Overlay"},
+		{"intro_animation", "Intro Animation"},
+		{"intro_enabled", "Enable Intro Animation"},
 		{"notes_speed", "Notes Speed"},
 		{"mirror_score", "Mirrored Lanes"},
 		{"flicks_animation", "Animate Flick Arrow"},

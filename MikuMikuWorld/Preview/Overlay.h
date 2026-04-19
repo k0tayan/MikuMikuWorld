@@ -29,6 +29,9 @@ namespace MikuMikuWorld
 	class Overlay
 	{
 	public:
+		// Pre-roll applied when the intro is enabled (3s title + 5s intro card + 1s gap).
+		static constexpr float INTRO_OFFSET_SECONDS = 9.0f;
+
 		Overlay();
 
 		bool init(const std::string& fontPath,

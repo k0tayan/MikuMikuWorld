@@ -36,6 +36,7 @@ namespace MikuMikuWorld
 		std::string musicFilename{};
 		float musicOffset{};
 		Jacket jacket{};
+		bool introEnabled{ false };
 
 		EditorScoreData() {}
 		EditorScoreData(const ScoreMetadata& metadata, const std::string& filename) :

@@ -82,7 +82,7 @@ namespace MikuMikuWorld
 			std::string introLang = "jp";
 		};
 
-		constexpr float INTRO_OFFSET_SECONDS = 9.0f;
+		constexpr float INTRO_OFFSET_SECONDS = Overlay::INTRO_OFFSET_SECONDS;
 
 		void printUsage()
 		{

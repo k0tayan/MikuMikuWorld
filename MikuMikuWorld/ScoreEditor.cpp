@@ -208,7 +208,7 @@ namespace MikuMikuWorld
 			ImGui::Begin(IMGUI_TITLE(ICON_FA_OBJECT_GROUP, "score_preview"), NULL, previewWindowFlags);
 		}
 
-		preview.update(context, renderer.get());
+		preview.update(context, renderer.get(), timeline);
 		preview.updateUI(timeline, context);
 		ImGui::End();
 

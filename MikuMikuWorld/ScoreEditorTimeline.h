@@ -119,6 +119,7 @@ namespace MikuMikuWorld
 		float songPosLastFrame{};
 		float playbackSpeed{ 1.0f };
 		float stopTime{ -1.0f };
+		float prerollSeconds{ 0.0f };
 		bool playing{ false };
 
 		std::unique_ptr<Framebuffer> slidePathFramebuffer;
@@ -255,7 +256,9 @@ namespace MikuMikuWorld
 		int findClosestHold(const ScoreContext& context, int lane, int tick);
 		bool isMouseInHoldPath(const Note& n1, const Note& n2, EaseType ease, float x, float y);
 		constexpr inline bool isPlaying() const { return playing; }
+		constexpr inline float getTime() const { return time; }
 		void setPlaying(ScoreContext& context, bool state);
+		void setPreroll(float seconds) { prerollSeconds = seconds > 0.0f ? seconds : 0.0f; }
 		void stop(ScoreContext& context);
 		void calculateMaxOffsetFromScore(const Score& score);
 
