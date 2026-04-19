@@ -868,9 +868,10 @@ namespace MikuMikuWorld
 		{
 			float videoTime = static_cast<float>(frame) / static_cast<float>(opt.fps);
 			float chartTime = videoTime - introOffset;
-			context.currentTick = chartTime > 0.f
-				? accumulateTicks(chartTime, TICKS_PER_BEAT, context.score.tempoChanges)
-				: 0;
+			// accumulateTicks returns a negative tick for negative chartTime,
+			// which the rendering pipeline uses to place notes above the lane
+			// during the intro pre-roll.
+			context.currentTick = accumulateTicks(chartTime, TICKS_PER_BEAT, context.score.tempoChanges);
 
 			preview.renderToFramebuffer(context, renderer.get(),
 				static_cast<float>(opt.width), static_cast<float>(opt.height), chartTime, true);

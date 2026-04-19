@@ -55,6 +55,13 @@ namespace MikuMikuWorld
 
 	double accumulateScaledDuration(int tick, int ticksPerBeat, const std::vector<Tempo>& bpms, const std::vector<HiSpeedChange>& hispeeds)
 	{
+		// Pre-chart times (tick < 0) use the initial BPM and the implicit speed
+		// 1.0 so the visual timeline extends smoothly before tick 0. Without this
+		// the scaled time clamps to 0 and all first-bar notes snap to the
+		// judgment line during the intro pre-roll.
+		if (tick < 0 && !bpms.empty())
+			return ticksToSec(tick, ticksPerBeat, bpms.front().bpm);
+
 		int prvBpm = 0, prvSpd = -1;
 		int accTicks = 0;
 		double totalDuration = 0;
