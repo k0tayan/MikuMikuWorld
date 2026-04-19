@@ -384,6 +384,8 @@ namespace MikuMikuWorld
 		previewBuffer.bind();
 		previewBuffer.clear();
 
+		const bool introShowing = overlay.isIntroShowing(currentTime);
+
 		renderer->beginBatch();
 		if (config.drawBackground)
 		{
@@ -398,8 +400,11 @@ namespace MikuMikuWorld
 		shader->use();
 		shader->setMatrix4("projection", viewProjection);
 		renderer->beginBatch();
-		drawLines(context, renderer);
-		drawHoldCurves(context, renderer);
+		if (!introShowing)
+		{
+			drawLines(context, renderer);
+			drawHoldCurves(context, renderer);
+		}
 		if (config.pvStageCover != 0) {
 			drawStageCoverMask(renderer);
 			renderer->endBatchWithDepthTest(GL_LEQUAL); // using depth test to cull the notes drawn
@@ -411,15 +416,19 @@ namespace MikuMikuWorld
 		pteShader->setMatrix4("projection", pProjection);
 		pteShader->setMatrix4("view", pView);
 		renderer->beginBatch();
-		context.scorePreviewDrawData.effectView.drawUnderNoteEffects(renderer, currentTime);
+		if (!introShowing)
+			context.scorePreviewDrawData.effectView.drawUnderNoteEffects(renderer, currentTime);
 		renderer->endBatchWithBlending(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 		shader->use();
 		shader->setMatrix4("projection", viewProjection);
 		renderer->beginBatch();
 
-		drawHoldTicks(context, renderer);
-		drawNotes(context, renderer);
+		if (!introShowing)
+		{
+			drawHoldTicks(context, renderer);
+			drawNotes(context, renderer);
+		}
 		if (config.pvStageCover != 0) {
 			drawStageCoverMask(renderer);
 			drawStageCover(renderer);
@@ -433,7 +442,8 @@ namespace MikuMikuWorld
 		pteShader->setMatrix4("projection", pProjection);
 		pteShader->setMatrix4("view", pView);
 		renderer->beginBatch();
-		context.scorePreviewDrawData.effectView.drawEffects(renderer, currentTime);
+		if (!introShowing)
+			context.scorePreviewDrawData.effectView.drawEffects(renderer, currentTime);
 		renderer->endBatchWithBlending(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 		if (config.pvOverlayEnabled && overlay.isInitialized())
