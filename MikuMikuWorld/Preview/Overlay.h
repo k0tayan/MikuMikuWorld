@@ -78,11 +78,5 @@ namespace MikuMikuWorld
 		void drawJudgmentAsset(Renderer* renderer, float sx, float sy);
 		void drawLifeAssets(Renderer* renderer, float sx, float sy);
 		void drawApVideo(Renderer* renderer, float sx, float sy, float vpW, float vpH);
-
-		// Fallback self-drawn helpers (used when asset pack is missing)
-		void drawScoreBarFallback(Renderer* renderer, float sx, float sy);
-		void drawComboTextFallback(Renderer* renderer, float sx, float sy);
-		void drawJudgmentTextFallback(Renderer* renderer, float sx, float sy);
-		void drawAllPerfectTextFallback(Renderer* renderer, float sx, float sy);
 	};
 }

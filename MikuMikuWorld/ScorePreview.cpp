@@ -453,7 +453,7 @@ namespace MikuMikuWorld
 			overlay.drawAdditivePass(renderer, viewportWidth, viewportHeight);
 			renderer->endBatchWithBlending(GL_ONE, GL_ONE, GL_ONE, GL_ONE);
 
-			// Pass 3: R8 font atlas (title, artist, fallbacks, score percent)
+			// Pass 3: R8 font atlas (title, artist)
 			if (textShader)
 			{
 				textShader->use();

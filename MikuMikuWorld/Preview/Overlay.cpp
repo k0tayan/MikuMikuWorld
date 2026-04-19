@@ -19,12 +19,6 @@ namespace MikuMikuWorld
 		constexpr float LAYOUT_WIDTH  = 1920.f;
 		constexpr float LAYOUT_HEIGHT = 1080.f;
 
-		// 1920x1080 layout coordinates (match the pjsekai-overlay-APPEND .exo roughly)
-		constexpr float BAR_CENTER_X     = 960.f;
-		constexpr float BAR_Y            = 70.f;
-		constexpr float BAR_WIDTH        = 1650.f;
-		constexpr float BAR_HEIGHT       = 40.f;
-
 		// Combo parent at .exo (X=673.5, Y=-62.5) with 拡大率 150% on 1920x1080
 		//   → canvas center (960+673.5, 540-62.5) = (1633.5, 477.5)
 		constexpr float COMBO_COMP_CX    = 1633.5f;
@@ -632,75 +626,6 @@ namespace MikuMikuWorld
 	}
 
 	// ---------------------------------------------------------------------
-	// Fallback (self-drawn) helpers — used when res/overlay/ is empty
-	// ---------------------------------------------------------------------
-
-	void Overlay::drawScoreBarFallback(Renderer* renderer, float sx, float sy)
-	{
-		const float barLeft = (BAR_CENTER_X - BAR_WIDTH * 0.5f) * sx;
-		const float barTop  = BAR_Y * sy;
-		const float barW    = BAR_WIDTH * sx;
-		const float barH    = BAR_HEIGHT * sy;
-
-		text.drawSolidRect(renderer, barLeft, barTop, barW, barH,
-		                   Color(0.f, 0.f, 0.f, 0.55f), 100);
-		const float ratio = std::clamp(currentScore, 0.f, 1.f);
-		if (ratio > 0.f)
-			text.drawSolidRect(renderer, barLeft, barTop, barW * ratio, barH,
-			                   Color(1.f, 0.95f, 0.35f, 0.9f), 101);
-
-		auto marker = [&](float pos) {
-			const float x = barLeft + barW * pos;
-			const float lineW = 2.f * sx;
-			text.drawSolidRect(renderer, x - lineW * 0.5f, barTop - 2.f * sy,
-			                   lineW, barH + 4.f * sy,
-			                   Color(1.f, 1.f, 1.f, 0.6f), 102);
-		};
-		marker(RANK_C); marker(RANK_B); marker(RANK_A); marker(RANK_S);
-	}
-
-	void Overlay::drawComboTextFallback(Renderer* renderer, float sx, float sy)
-	{
-		if (currentCombo <= 0) return;
-		char buf[16];
-		std::snprintf(buf, sizeof(buf), "%d", currentCombo);
-		const float unit = std::min(sx, sy);
-		const float digitScale = 108.f / 64.f * unit;
-		const float cx = COMBO_COMP_CX * sx;
-		text.drawText(renderer, buf, cx, (COMBO_COMP_CY - 60.f) * sy,
-		              digitScale, Color(1.f, 1.f, 1.f, 0.95f), 120, TextAlign::Center);
-		const float labelScale = 36.f / 64.f * unit;
-		text.drawText(renderer, "COMBO", cx, (COMBO_COMP_CY - 120.f) * sy,
-		              labelScale, Color(1.f, 1.f, 1.f, 0.7f), 120, TextAlign::Center);
-	}
-
-	void Overlay::drawJudgmentTextFallback(Renderer* renderer, float sx, float sy)
-	{
-		if (judgmentFlashTimer <= 0.f) return;
-		float alpha = std::clamp(judgmentFlashTimer / JUDGE_DURATION, 0.f, 1.f);
-		const float unit = std::min(sx, sy);
-		const float jScale = 72.f / 64.f * unit;
-		text.drawText(renderer, "PERFECT", JUDGE_X * sx, JUDGE_Y * sy,
-		              jScale, Color(1.f, 0.95f, 0.35f, alpha), 125, TextAlign::Center);
-	}
-
-	void Overlay::drawAllPerfectTextFallback(Renderer* renderer, float sx, float sy)
-	{
-		if (!allPerfectTriggered) return;
-		const float unit = std::min(sx, sy);
-		const float pulse = 0.5f + 0.5f * std::sin(allPerfectTimer * 6.283185f);
-		const float hue = std::fmod(allPerfectTimer * 0.4f, 1.f);
-		const float r = 0.5f + 0.5f * std::sin(hue * 6.283185f);
-		const float g = 0.5f + 0.5f * std::sin(hue * 6.283185f + 2.094395f);
-		const float b = 0.5f + 0.5f * std::sin(hue * 6.283185f + 4.188790f);
-		const float apScale = 120.f / 64.f * unit;
-		text.drawText(renderer, "ALL PERFECT",
-		              960.f * sx, 360.f * sy,
-		              apScale, Color(r, g, b, 0.55f + 0.45f * pulse),
-		              130, TextAlign::Center);
-	}
-
-	// ---------------------------------------------------------------------
 	// Pass entry points
 	// ---------------------------------------------------------------------
 
@@ -791,14 +716,5 @@ namespace MikuMikuWorld
 		}
 
 		// Score value now comes from the asset-based digit drawing in drawScoreBarAssets.
-
-		// When no asset pack is present, draw the self-made fallbacks.
-		if (!assets.hasCore())
-		{
-			drawScoreBarFallback(renderer, sx, sy);
-			drawComboTextFallback(renderer, sx, sy);
-			drawJudgmentTextFallback(renderer, sx, sy);
-			drawAllPerfectTextFallback(renderer, sx, sy);
-		}
 	}
 }
