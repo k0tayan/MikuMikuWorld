@@ -33,6 +33,8 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/glfw/glfw.git
     GIT_TAG        3.4
     GIT_SHALLOW    TRUE
+    PATCH_COMMAND  git apply --ignore-whitespace --reject "${CMAKE_CURRENT_SOURCE_DIR}/patches/glfw-cocoa-ime.patch" || true
+    UPDATE_DISCONNECTED TRUE
 )
 
 set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)

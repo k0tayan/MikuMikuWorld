@@ -1,0 +1,29 @@
+diff --git a/src/cocoa_window.m b/src/cocoa_window.m
+--- a/src/cocoa_window.m
++++ b/src/cocoa_window.m
+@@ -562,10 +562,22 @@ static const NSRange kEmptyRange = { NSNotFound, 0 };
+ - (void)keyDown:(NSEvent *)event
+ {
+     const int key = translateKey([event keyCode]);
+     const int mods = translateFlags([event modifierFlags]);
+
+-    _glfwInputKey(window, key, [event keyCode], GLFW_PRESS, mods);
+-
++    // Let the IME process the key first. Without this, keys used to drive an
++    // active composition (Enter/Space/arrows for Japanese IME candidate
++    // selection, commit, etc.) also fire as raw key events and cause
++    // consumers like Dear ImGui to close or submit text fields before the
++    // IME has a chance to deliver the composed text.
++    const BOOL hadMarkedText = [self hasMarkedText];
+     [self interpretKeyEvents:@[event]];
++    const BOOL hasMarkedTextNow = [self hasMarkedText];
++
++    // Swallow the key event when the IME owned this keystroke — either it
++    // was already composing, or it just started composing.
++    if (hadMarkedText || hasMarkedTextNow)
++        return;
++
++    _glfwInputKey(window, key, [event keyCode], GLFW_PRESS, mods);
+ }
+
+ - (void)flagsChanged:(NSEvent *)event
