@@ -89,6 +89,14 @@ namespace MikuMikuWorld
 		// Combo digit pop animation (resets to 0 whenever the count increments).
 		float comboPopAge{ 1000.f };
 
+		// sekai.obj2 anim_score cubic interpolation: prev → current over 30 frames.
+		float prevScore{ 0.f };
+		float scoreAnimAge{ 1000.f };
+
+		// sekai.obj2 n00 combo burst overlay.
+		int   comboBurstValue{ 0 };
+		float comboBurstAge{ 1000.f };
+
 		void buildTimeline(const Score& score);
 
 		// Asset-based draw helpers

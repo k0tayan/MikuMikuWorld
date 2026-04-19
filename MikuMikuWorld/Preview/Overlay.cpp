@@ -21,10 +21,10 @@ namespace MikuMikuWorld
 		constexpr float LAYOUT_WIDTH  = 1920.f;
 		constexpr float LAYOUT_HEIGHT = 1080.f;
 
-		// Combo parent at .exo (X=673.5, Y=-62.5) with 拡大率 150% on 1920x1080
-		//   → canvas center (960+673.5, 540-62.5) = (1633.5, 477.5)
+		// Combo parent at main2 .object (X=673.5, Y=-63.5) with 拡大率 150% on 1920x1080
+		//   → canvas center (960+673.5, 540-63.5) = (1633.5, 476.5)
 		constexpr float COMBO_COMP_CX    = 1633.5f;
-		constexpr float COMBO_COMP_CY    =  477.5f;
+		constexpr float COMBO_COMP_CY    =  476.5f;
 		constexpr float COMBO_POS_SCALE  = 1.5f;   // tempbuffer -> canvas pixel
 		constexpr float COMBO_DIGIT_ADV  = 72.f;   // tempbuffer digit advance
 		constexpr float COMBO_DIGIT_BASE = 0.70f;  // obj.draw scale for digits
@@ -96,6 +96,10 @@ namespace MikuMikuWorld
 		scoreDelta = 0;
 		scoreDeltaAge = 1000.f;
 		comboPopAge = 1000.f;
+		prevScore = 0.f;
+		scoreAnimAge = 1000.f;
+		comboBurstValue = 0;
+		comboBurstAge = 1000.f;
 	}
 
 	void Overlay::buildTimeline(const Score& score)
@@ -154,6 +158,8 @@ namespace MikuMikuWorld
 			return (int)std::min(99999999.f, std::max(0.f, ratio * 1000000.f / 0.896f));
 		};
 		const int scoreBefore = toDisplayScore(currentScore);
+		const float scoreRatioBefore = currentScore;
+		bool anyNoteHit = false;
 
 		while (nextIdx < timeline.size() && timeline[nextIdx].time <= currentTime)
 		{
@@ -163,9 +169,20 @@ namespace MikuMikuWorld
 			if (totalWeight > 0.f)
 				currentScore = std::min(1.f, currentScore + n.weight / totalWeight);
 			judgmentFlashTimer = JUDGE_DURATION;
+			anyNoteHit = true;
+			if (totalCombo > 0 && currentCombo > 0 && currentCombo % 100 == 0)
+			{
+				comboBurstValue = currentCombo;
+				comboBurstAge = 0.f;
+			}
 			++nextIdx;
 			if (totalCombo > 0 && currentCombo >= totalCombo && fullComboTime < 0.f)
 				fullComboTime = n.time;
+		}
+		if (anyNoteHit)
+		{
+			prevScore = scoreRatioBefore;
+			scoreAnimAge = 0.f;
 		}
 
 		// Wait AP_TRIGGER_DELAY seconds after the last note before the AP
@@ -185,6 +202,8 @@ namespace MikuMikuWorld
 		}
 		scoreDeltaAge += dt;
 		comboPopAge += dt;
+		scoreAnimAge += dt;
+		comboBurstAge += dt;
 
 		if (judgmentFlashTimer > 0.f) judgmentFlashTimer = std::max(0.f, judgmentFlashTimer - dt);
 		if (allPerfectTriggered) allPerfectTimer += dt;
@@ -224,7 +243,12 @@ namespace MikuMikuWorld
 		// bar.png (1650x76) — gradient fill, masked by currentScore from the left.
 		// Position offset (+34, -3) is in tempbuffer coordinates which project
 		// to canvas via the .exo's 1.5x scale, independent from the 0.2145 image scale.
-		const float ratio = std::clamp(currentScore, 0.f, 1.f);
+		// sekai.obj2 anim_score: width = current - (current - prev) * (1 - t)^3, t ∈ [0..1]
+		// over 30 frames (0.5s). Interpolates bar fill smoothly from prev → current.
+		const float animProgress = std::min(1.f, scoreAnimAge / 0.5f);
+		const float animFactor   = (1.f - animProgress) * (1.f - animProgress) * (1.f - animProgress);
+		const float animatedScore = currentScore - (currentScore - prevScore) * animFactor;
+		const float ratio = std::clamp(animatedScore, 0.f, 1.f);
 		if (ratio > 0.f)
 		{
 			if (const Texture* t = OverlayAssets::get(assets.bar))
@@ -309,7 +333,9 @@ namespace MikuMikuWorld
 		//   canvas_pos  = composite_center + tempbuffer_xy * 1.5
 		//   canvas_size = raw_pixels * 0.65 * 1.5
 		// pjsekai displays scores as zero-padded 8-digit numbers (e.g. 00528711).
-		const int displayScore = (int)std::min(99999999.f, std::max(0.f, currentScore * 1000000.f / 0.896f));
+		// anim_score also interpolates the digit value, so the readout ticks up
+		// smoothly rather than snapping on each note.
+		const int displayScore = (int)std::min(99999999.f, std::max(0.f, animatedScore * 1000000.f / 0.896f));
 		char sbuf[16];
 		std::snprintf(sbuf, sizeof(sbuf), "%08d", displayScore);
 		const int slen = (int)std::strlen(sbuf);
@@ -343,24 +369,25 @@ namespace MikuMikuWorld
 			drawDigitImage(assets.scoreDigit[d],     i, 105);
 			drawDigitImage(assets.scoreDigit[d],     i, 105);
 		}
+		// Reference draws fill twice too (sekai.obj2:476-481) for density.
 		for (int i = 0; i < slen; ++i)
 		{
 			int d = sbuf[i] - '0';
 			if (d < 0 || d > 9) continue;
+			drawDigitImage(assets.scoreDigitFill[d], i, 106);
 			drawDigitImage(assets.scoreDigitFill[d], i, 106);
 		}
 
 		// "+xxxx" score gain animation: slide-in and fade-in to the right of
 		// the main score, disappear after ~0.5s. Matches sekai.obj2 @スコア
 		// numbers: digit scale 0.42, advance 13.65, y=+34 in tempbuffer.
+		// Reference shows the "+xxxx" for progress_frame ∈ [0, 30] (30 frames = 0.5s)
+		// and simply stops drawing afterwards — no explicit fadeout.
 		if (scoreDeltaAge < 0.5f && scoreDelta != 0)
 		{
 			const float progress = std::clamp(scoreDeltaAge / 0.2f, 0.f, 1.f);
 			const float easedProgress = 1.f - std::pow(0.9f, progress * 12.f);
-			float alpha = std::clamp(1.3f * easedProgress, 0.f, 1.f);
-			// Fade out in the last portion of the lifetime.
-			if (scoreDeltaAge > 0.35f)
-				alpha *= std::max(0.f, 1.f - (scoreDeltaAge - 0.35f) / 0.15f);
+			const float alpha = std::clamp(1.3f * easedProgress, 0.f, 1.f);
 
 			const bool negative = scoreDelta < 0;
 			int absDelta = negative ? -scoreDelta : scoreDelta;
@@ -478,6 +505,89 @@ namespace MikuMikuWorld
 			if (d < 0 || d > 9) continue;
 			drawDigit(assets.comboDigitGlow[d], i, 111, apAlpha);
 			drawDigit(assets.comboDigit[d],     i, 112, 1.f);
+		}
+
+		// Ghost fade-out overlay (sekai.obj2:598-634). Re-draws the same digits
+		// with alpha = 1 - progress/14 over 14 frames and an UNCLAMPED shift_fax
+		// that continues to grow past 1.0, so the ghost pops outward while fading.
+		if (progressFrames < 14.f)
+		{
+			const float ghostShiftFax = (progressFrames / 8.f) * 0.5f + 0.5f;
+			const float ghostScale    = COMBO_DIGIT_BASE * ghostShiftFax;
+			const float ghostAlpha    = std::clamp(1.f - progressFrames / 14.f, 0.f, 1.f);
+
+			auto drawGhost = [&](int texIdx, int i, int z, float alpha)
+			{
+				const Texture* t = OverlayAssets::get(texIdx);
+				if (!t) return;
+				const float shift = -(len / 2.f) + (i + 1) - 0.5f;
+				const float tbX = shift * COMBO_DIGIT_ADV * ghostShiftFax;
+				const float cx = compCX + tbX * COMBO_POS_SCALE * sx;
+				const float cy = compCY;
+				const float w  = (float)t->getWidth()  * ghostScale * COMBO_POS_SCALE * sx;
+				const float h  = (float)t->getHeight() * ghostScale * COMBO_POS_SCALE * sy;
+				renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
+				                        *t, 0.f, (float)t->getWidth(),
+				                        0.f, (float)t->getHeight(),
+				                        Color(1.f, 1.f, 1.f, alpha * hudAlpha), z);
+			};
+
+			for (int i = 0; i < len; ++i)
+			{
+				int d = buf[i] - '0';
+				if (d < 0 || d > 9) continue;
+				drawGhost(assets.comboDigitGlow[d], i, 113, apAlpha * ghostAlpha);
+				drawGhost(assets.comboDigit[d],     i, 114, ghostAlpha);
+			}
+		}
+
+		// n00 combo burst overlay (sekai.obj2:635-661). Independent timer; scales
+		// dramatically and fades out over 14 frames at every 100-combo milestone.
+		const float burstFrames = comboBurstAge * COMBO_FPS;
+		if (comboBurstValue > 0 && burstFrames < 14.f)
+		{
+			char bbuf[16];
+			std::snprintf(bbuf, sizeof(bbuf), "%d", comboBurstValue);
+			const int blen = (int)std::strlen(bbuf);
+
+			float burstShiftFax;
+			float burstAlpha;
+			if (burstFrames < 1.f)
+			{
+				burstShiftFax = 1.75f;
+				burstAlpha    = 0.7f;
+			}
+			else
+			{
+				const float u = 1.077f - burstFrames / 14.f;
+				burstShiftFax = 1.75f - u * u * u;
+				burstAlpha    = std::max(0.f, 1.f - (burstFrames + 6.f) / 20.f);
+			}
+			const float burstDigitScale = COMBO_DIGIT_BASE * burstShiftFax;
+
+			auto drawBurst = [&](int texIdx, int i, int z, float alpha)
+			{
+				const Texture* t = OverlayAssets::get(texIdx);
+				if (!t) return;
+				const float shift = -(blen / 2.f) + (i + 1) - 0.5f;
+				const float tbX = shift * COMBO_DIGIT_ADV * burstShiftFax;
+				const float cx = compCX + tbX * COMBO_POS_SCALE * sx;
+				const float cy = compCY;
+				const float w  = (float)t->getWidth()  * burstDigitScale * COMBO_POS_SCALE * sx;
+				const float h  = (float)t->getHeight() * burstDigitScale * COMBO_POS_SCALE * sy;
+				renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
+				                        *t, 0.f, (float)t->getWidth(),
+				                        0.f, (float)t->getHeight(),
+				                        Color(1.f, 1.f, 1.f, alpha * hudAlpha), z);
+			};
+
+			for (int i = 0; i < blen; ++i)
+			{
+				int d = bbuf[i] - '0';
+				if (d < 0 || d > 9) continue;
+				drawBurst(assets.comboDigitGlow[d], i, 113, apAlpha * burstAlpha);
+				drawBurst(assets.comboDigit[d],     i, 114, burstAlpha);
+			}
 		}
 	}
 
@@ -736,8 +846,9 @@ namespace MikuMikuWorld
 			                        Color(1.f, 1.f, 1.f, alpha), 72);
 		};
 
-		drawWave(61.f, 180.f);
-		drawWave(181.f, 300.f);
+		// Reference .object frames: wave1 = 60..179, wave2 = 180..299 (inclusive).
+		drawWave(60.f, 180.f);
+		drawWave(180.f, 300.f);
 	}
 
 	void Overlay::drawIntroCard(Renderer* renderer, float sx, float sy, float videoTime,
@@ -884,6 +995,11 @@ namespace MikuMikuWorld
 			if (isApPlaying())
 			{
 				// Let the AP takeover carry the moment — skip lower-priority HUD.
+				// main2 .object [26]: full-screen black at 50% opacity behind the
+				// AP video for the entire outro (frame 3620..4000).
+				text.drawSolidRect(renderer, 0.f, 0.f,
+				                   vpWidth, vpHeight,
+				                   Color(0.f, 0.f, 0.f, 0.5f), 150);
 				return;
 			}
 			drawScoreBarAssets(renderer, sx, sy);
@@ -914,6 +1030,25 @@ namespace MikuMikuWorld
 		{
 			const float videoTime = chartTime + introOffset;
 			drawIntroText(renderer, sx, sy, videoTime);
+		}
+
+		// main2 .object [29][30]: final black fade-in on top of the AP video.
+		// Frame 3891..3935 linearly ramps transparency 100→0, i.e. alpha 0→1
+		// over 44 frames (~0.73s), then holds fully black. AP video starts at
+		// frame 3620 so in AP-local time: fade begins at 4.52s, completes at 5.25s.
+		if (isApPlaying())
+		{
+			constexpr float FADE_START = 271.f / 60.f;   // 4.5167s
+			constexpr float FADE_END   = 315.f / 60.f;   // 5.25s
+			if (allPerfectTimer >= FADE_START)
+			{
+				float alpha = 1.f;
+				if (allPerfectTimer < FADE_END)
+					alpha = (allPerfectTimer - FADE_START) / (FADE_END - FADE_START);
+				text.drawSolidRect(renderer, 0.f, 0.f,
+				                   vpWidth, vpHeight,
+				                   Color(0.f, 0.f, 0.f, std::clamp(alpha, 0.f, 1.f)), 250);
+			}
 		}
 	}
 }
