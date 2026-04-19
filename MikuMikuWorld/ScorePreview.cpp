@@ -452,7 +452,7 @@ namespace MikuMikuWorld
 			overlay.drawIntroPass(renderer, viewportWidth, viewportHeight,
 			                      context.workingData.jacket, currentTime);
 			if (!overlay.isIntroShowing(currentTime))
-				overlay.drawAssetPass(renderer, viewportWidth, viewportHeight);
+				overlay.drawAssetPass(renderer, viewportWidth, viewportHeight, currentTime);
 			renderer->endBatch();
 
 			// Pass 2: AP video — rendered additively since the source has a black background.

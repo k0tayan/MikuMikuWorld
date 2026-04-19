@@ -50,7 +50,7 @@ namespace MikuMikuWorld
 		// Draw passes split by shader / blend mode.
 		void drawIntroPass(Renderer* renderer, float vpWidth, float vpHeight,
 		                   const Jacket& jacket, float chartTime);
-		void drawAssetPass(Renderer* renderer, float vpWidth, float vpHeight);
+		void drawAssetPass(Renderer* renderer, float vpWidth, float vpHeight, float chartTime);
 		void drawAdditivePass(Renderer* renderer, float vpWidth, float vpHeight);
 		void drawTextPass(Renderer* renderer, float vpWidth, float vpHeight,
 		                  const ScoreContext& context, float chartTime);
@@ -101,6 +101,10 @@ namespace MikuMikuWorld
 		// Intro (pre-chart) draw helpers
 		float introOffset{ 0.f };
 		OverlayIntroData introData;
+		// Opacity multiplier applied to every HUD draw during the post-intro
+		// fade-in (main .object [2]: transparency 100→0 over frames 300..395).
+		// Updated at the start of drawAssetPass.
+		float hudAlpha{ 1.f };
 		void drawIntroBackground(Renderer* renderer, float sx, float sy, float videoTime);
 		void drawIntroStartGrad(Renderer* renderer, float sx, float sy, float videoTime);
 		void drawIntroWhiteFlash(Renderer* renderer, float sx, float sy, float videoTime);

@@ -218,7 +218,7 @@ namespace MikuMikuWorld
 			renderer->drawRectangle({ bgCX - w * 0.5f, bgCY - h * 0.5f }, { w, h },
 			                        *t, 0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
-			                        Color(1.f, 1.f, 1.f, 1.f), 100);
+			                        Color(1.f, 1.f, 1.f, hudAlpha), 100);
 		}
 
 		// bar.png (1650x76) — gradient fill, masked by currentScore from the left.
@@ -241,7 +241,7 @@ namespace MikuMikuWorld
 				renderer->drawRectangle({ barLeft, barTop }, { fillW, barH },
 				                        *t, 0.f, uvX2,
 				                        0.f, (float)t->getHeight(),
-				                        Color(1.f, 1.f, 1.f, 1.f), 102);
+				                        Color(1.f, 1.f, 1.f, hudAlpha), 102);
 			}
 		}
 
@@ -253,7 +253,7 @@ namespace MikuMikuWorld
 			renderer->drawRectangle({ bgCX - w * 0.5f, bgCY - h * 0.5f }, { w, h },
 			                        *t, 0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
-			                        Color(1.f, 1.f, 1.f, 1.f), 104);
+			                        Color(1.f, 1.f, 1.f, hudAlpha), 104);
 		}
 
 		// Big rank letter in the dark panel on the left.
@@ -280,7 +280,7 @@ namespace MikuMikuWorld
 				renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
 				                        *t, 0.f, (float)t->getWidth(),
 				                        0.f, (float)t->getHeight(),
-				                        Color(1.f, 1.f, 1.f, 1.f), 107);
+				                        Color(1.f, 1.f, 1.f, hudAlpha), 107);
 			}
 		}
 
@@ -299,7 +299,7 @@ namespace MikuMikuWorld
 			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
 			                        *t, 0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
-			                        Color(1.f, 1.f, 1.f, 1.f), 107);
+			                        Color(1.f, 1.f, 1.f, hudAlpha), 107);
 		}
 
 		// Numeric score display. In pjsekai's tempbuffer the leftmost digit sits
@@ -332,7 +332,7 @@ namespace MikuMikuWorld
 			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
 			                        *t, 0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
-			                        Color(1.f, 1.f, 1.f, 1.f), z);
+			                        Color(1.f, 1.f, 1.f, hudAlpha), z);
 		};
 
 		// Shadow (s-prefix) pass twice for density, then the fill pass on top.
@@ -387,7 +387,7 @@ namespace MikuMikuWorld
 				renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
 				                        *t, 0.f, (float)t->getWidth(),
 				                        0.f, (float)t->getHeight(),
-				                        Color(1.f, 1.f, 1.f, alpha), z);
+				                        Color(1.f, 1.f, 1.f, alpha * hudAlpha), z);
 			};
 
 			// First glyph is the sign, followed by digits.
@@ -440,7 +440,7 @@ namespace MikuMikuWorld
 			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
 			                        *t, 0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
-			                        Color(1.f, 1.f, 1.f, alpha), z);
+			                        Color(1.f, 1.f, 1.f, alpha * hudAlpha), z);
 		};
 		drawTag(assets.comboLabelGlow, -70.f, 109, apAlpha);
 		drawTag(assets.comboLabel,     -67.f, 110, 1.f);
@@ -469,7 +469,7 @@ namespace MikuMikuWorld
 			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
 			                        *t, 0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
-			                        Color(1.f, 1.f, 1.f, alpha), z);
+			                        Color(1.f, 1.f, 1.f, alpha * hudAlpha), z);
 		};
 
 		for (int i = 0; i < len; ++i)
@@ -506,7 +506,7 @@ namespace MikuMikuWorld
 			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
 			                        *t, 0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
-			                        Color(1.f, 1.f, 1.f, 1.f), 100);
+			                        Color(1.f, 1.f, 1.f, hudAlpha), 100);
 		}
 
 		// Preview simulates a perfect play, so life stays at max (1000/1000)
@@ -520,7 +520,7 @@ namespace MikuMikuWorld
 			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h },
 			                        *t, 0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
-			                        Color(1.f, 1.f, 1.f, 1.f), 101);
+			                        Color(1.f, 1.f, 1.f, hudAlpha), 101);
 		}
 
 		// Digit string: right-aligned at tempbuffer (563, -145), advancing
@@ -546,7 +546,7 @@ namespace MikuMikuWorld
 			renderer->drawRectangle({ glyphCX - w * 0.5f, glyphCY - h * 0.5f }, { w, h },
 			                        *t, 0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
-			                        Color(1.f, 1.f, 1.f, 1.f), z);
+			                        Color(1.f, 1.f, 1.f, hudAlpha), z);
 		};
 
 		// Shadow (s-prefix) pass then fill pass on top.
@@ -596,7 +596,7 @@ namespace MikuMikuWorld
 		const float h = (float)t->getHeight() * sy * scale;
 		const float cx = JUDGE_X * sx;
 		const float cy = JUDGE_Y * sy;
-		drawTexCentered(renderer, t, cx, cy, w, h, 115, alpha);
+		drawTexCentered(renderer, t, cx, cy, w, h, 115, alpha * hudAlpha);
 	}
 
 	void Overlay::drawApVideo(Renderer* renderer, float /*sx*/, float /*sy*/,
@@ -670,6 +670,16 @@ namespace MikuMikuWorld
 			float eased = 1.f - (1.f - u) * (1.f - u);
 			return 1500.f * (1.f - eased);
 		}
+
+		// Object [6] in the .object: layer=3 frame=270..299 透明度=0→100 直線移動.
+		// Intro card fades out linearly over 30 frames starting at 4.5s.
+		float introFadeOutAlpha(float videoTime)
+		{
+			const float frame = videoTime * 60.f;
+			if (frame < 270.f) return 1.f;
+			if (frame >= 299.f) return 0.f;
+			return 1.f - (frame - 270.f) / 29.f;
+		}
 	}
 
 	void Overlay::drawIntroBackground(Renderer* renderer, float sx, float sy, float videoTime)
@@ -687,8 +697,8 @@ namespace MikuMikuWorld
 		if (!t) return;
 
 		// Wave 1 (frames 61-180) and Wave 2 (frames 181-300), each slides Y=1500 → 0
-		// over 15 frames with deceleration then holds. 透明度=90 → α=0.10.
-		const float alpha = 0.10f;
+		// over the object lifetime with deceleration then holds. 透明度=90 → α=0.10.
+		const float alpha = 0.10f * introFadeOutAlpha(videoTime);
 		const float frame = videoTime * 60.f;
 
 		auto drawWave = [&](float startFrame, float endFrame)
@@ -733,9 +743,8 @@ namespace MikuMikuWorld
 	void Overlay::drawIntroCard(Renderer* renderer, float sx, float sy, float videoTime,
 	                            const Jacket& jacket)
 	{
-		// Object [6]: all card items fade out at frame 271 over ~1 frame. Treat as
-		// instant disappearance just after 4.5s.
-		if (videoTime * 60.f >= 272.f) return;
+		const float alpha = introFadeOutAlpha(videoTime);
+		if (alpha <= 0.f) return;
 
 		// Difficulty badge (object [8]): pos (-661.5, 288), 拡大率 39.26% of 1024x1024.
 		// Acts as a colored backdrop for the jacket (rendered below it).
@@ -749,7 +758,7 @@ namespace MikuMikuWorld
 			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h }, *t,
 			                        0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
-			                        Color(1.f, 1.f, 1.f, 1.f), 90);
+			                        Color(1.f, 1.f, 1.f, alpha), 90);
 		}
 
 		// Cover (object [23]): pos (-618, 245), 拡大率 78.75%, source assumed 512x512
@@ -763,16 +772,17 @@ namespace MikuMikuWorld
 			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h }, *t,
 			                        0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
-			                        Color(1.f, 1.f, 1.f, 1.f), 91);
+			                        Color(1.f, 1.f, 1.f, alpha), 91);
 		}
 	}
 
 	void Overlay::drawIntroText(Renderer* renderer, float sx, float sy, float videoTime)
 	{
-		if (videoTime * 60.f >= 272.f) return;
+		const float alpha = introFadeOutAlpha(videoTime);
+		if (alpha <= 0.f) return;
 
 		const float unit = std::min(sx, sy);
-		const Color white(1.f, 1.f, 1.f, 1.f);
+		const Color white(1.f, 1.f, 1.f, alpha);
 
 		// Difficulty text (main2 .object): pos (-855, 446), size 84, 拡大率 38%, left-top anchor.
 		{
@@ -850,11 +860,21 @@ namespace MikuMikuWorld
 		drawIntroCard(renderer, sx, sy, videoTime, jacket);
 	}
 
-	void Overlay::drawAssetPass(Renderer* renderer, float vpWidth, float vpHeight)
+	void Overlay::drawAssetPass(Renderer* renderer, float vpWidth, float vpHeight, float chartTime)
 	{
 		if (vpWidth <= 0.f || vpHeight <= 0.f) return;
 		const float sx = vpWidth / LAYOUT_WIDTH;
 		const float sy = vpHeight / LAYOUT_HEIGHT;
+
+		// Post-intro HUD fade-in: .object [2] 透明度 100→0 over frames 300..395.
+		hudAlpha = 1.f;
+		if (introOffset > 0.f)
+		{
+			const float videoFrame = (chartTime + introOffset) * 60.f;
+			if (videoFrame < 300.f)       hudAlpha = 0.f;
+			else if (videoFrame < 395.f)  hudAlpha = (videoFrame - 300.f) / 95.f;
+		}
+		if (hudAlpha <= 0.f) return;
 
 		if (assets.hasCore())
 		{
