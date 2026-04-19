@@ -557,13 +557,10 @@ namespace MikuMikuWorld
 
 			if (haveBgm)
 			{
-				if (audioOffsetSeconds > 0.f)
-				{
-					char buf[64];
-					std::snprintf(buf, sizeof(buf), " -itsoffset %.6f", audioOffsetSeconds);
-					cmd += buf;
-				}
-				else if (audioOffsetSeconds < 0.f)
+				// Negative offsets seek into the input; positive offsets are applied
+				// via adelay inside the filter graph (itsoffset is unreliable when
+				// fed through amix).
+				if (audioOffsetSeconds < 0.f)
 				{
 					char buf[64];
 					std::snprintf(buf, sizeof(buf), " -ss %.6f", -audioOffsetSeconds);
@@ -586,13 +583,26 @@ namespace MikuMikuWorld
 			cmd += " -vf vflip";
 			cmd += " -c:v libx264 -pix_fmt yuv420p -preset medium -crf 18";
 
-			// Build audio graph. The AP track needs an adelay to land at the
-			// right moment (itsoffset is unreliable when feeding through amix).
+			// Build audio graph. Both BGM and AP use adelay to land at the right
+			// moment (itsoffset is unreliable when feeding through amix).
 			std::vector<std::string> amixInputs;
 			std::string filter;
 			if (haveBgm)
 			{
-				amixInputs.push_back(std::to_string(bgmIndex) + ":a");
+				if (audioOffsetSeconds > 0.f)
+				{
+					char buf[128];
+					const int delayMs = (int)(audioOffsetSeconds * 1000.f);
+					std::snprintf(buf, sizeof(buf),
+						"[%d:a]adelay=%d|%d[bgm];",
+						bgmIndex, delayMs, delayMs);
+					filter += buf;
+					amixInputs.push_back("bgm");
+				}
+				else
+				{
+					amixInputs.push_back(std::to_string(bgmIndex) + ":a");
+				}
 			}
 			if (haveSe)
 			{
