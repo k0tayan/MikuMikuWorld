@@ -21,32 +21,25 @@ namespace MikuMikuWorld
 		constexpr float LAYOUT_WIDTH  = 1920.f;
 		constexpr float LAYOUT_HEIGHT = 1080.f;
 
-		// Combo parent at main2 .object (X=673.5, Y=-63.5) with 拡大率 150% on 1920x1080
-		//   → canvas center (960+673.5, 540-63.5) = (1633.5, 476.5)
+		// main2 .object combo parent (X=673.5, Y=-63.5) at 150% on 1920x1080.
 		constexpr float COMBO_COMP_CX    = 1633.5f;
 		constexpr float COMBO_COMP_CY    =  476.5f;
-		constexpr float COMBO_POS_SCALE  = 1.5f;   // tempbuffer -> canvas pixel
-		constexpr float COMBO_DIGIT_ADV  = 72.f;   // tempbuffer digit advance
-		constexpr float COMBO_DIGIT_BASE = 0.70f;  // obj.draw scale for digits
-		constexpr float COMBO_LABEL_SCALE = 0.67f; // obj.draw scale for nt.png
-		constexpr float COMBO_LABEL_TB_Y = -67.f;  // tempbuffer Y offset for tag
+		constexpr float COMBO_POS_SCALE  = 1.5f;
+		constexpr float COMBO_DIGIT_ADV  = 72.f;
+		constexpr float COMBO_DIGIT_BASE = 0.70f;
+		constexpr float COMBO_LABEL_SCALE = 0.67f;
+		constexpr float COMBO_LABEL_TB_Y = -67.f;
 		constexpr float COMBO_FPS        = 60.f;
 
-		// Parent object at (X=0, Y=127.5) with 拡大率 150% on 1920x1080 canvas
-		//   → canvas center (960, 540+127.5) = (960, 667.5).
-		// Script draws the image at obj.draw(0, 0, 0, 2/3) in a tempbuffer, so
-		// on-canvas pixels = image pixels * (2/3) * 1.5 = image pixels * 1.0.
-		// Lifetime is 20 frames at the rendering framerate (60fps reference)
-		// split into: 0-1 invisible, 2-4 scale pop, 5-19 stable.
 		constexpr float JUDGE_X          = 960.f;
 		constexpr float JUDGE_Y          = 667.5f;
 		constexpr float JUDGE_FPS        = 60.f;
 		constexpr float JUDGE_DURATION   = 20.f / JUDGE_FPS;
 
-		constexpr float AP_VIDEO_DURATION = 10.0f; // typical ap.mp4 length
-		constexpr float AP_TRIGGER_DELAY  = 2.0f;  // pause after the last note
+		constexpr float AP_VIDEO_DURATION = 10.0f;
+		constexpr float AP_TRIGGER_DELAY  = 2.0f;
 
-		// Rank boundary ratios (v3 gauge)
+		// v3 gauge rank thresholds (fractions of the 1650px bar).
 		constexpr float RANK_C = 746.f  / 1650.f;
 		constexpr float RANK_B = 990.f  / 1650.f;
 		constexpr float RANK_A = 1234.f / 1650.f;
@@ -185,8 +178,7 @@ namespace MikuMikuWorld
 			scoreAnimAge = 0.f;
 		}
 
-		// Wait AP_TRIGGER_DELAY seconds after the last note before the AP
-		// takeover starts, so the final combo has a moment to breathe.
+		// Delay AP takeover so the final combo has a moment to breathe.
 		if (fullComboTime >= 0.f && !allPerfectTriggered
 		    && currentTime - fullComboTime >= AP_TRIGGER_DELAY)
 		{
@@ -209,27 +201,17 @@ namespace MikuMikuWorld
 		if (allPerfectTriggered) allPerfectTimer += dt;
 	}
 
-	// ---------------------------------------------------------------------
-	// Asset-based drawing (used when res/overlay/ is populated)
-	// ---------------------------------------------------------------------
-
 	void Overlay::drawScoreBarAssets(Renderer* renderer, float sx, float sy)
 	{
-		// Layout derived from pjsekai-overlay-APPEND sekai.obj2 @スコア group:
-		//   obj.setoption("drawtarget", "tempbuffer", x_boundary, 180)
-		//   obj.draw(0, 0, 0, 0.2145)                 -- bg at composite scale 21.45%
-		//   obj.draw(34, -3, 0, 0.2145)               -- bar shifted (+34, -3)
-		//   obj.draw(0, 0, 0, 0.2145)                 -- fg overlay
-		// Parent (.exo) positions the composite at (-583.5, -471) with 150% scale
-		// in a 1920x1080 canvas whose (0,0) is the center → screen center (376.5, 69).
-		constexpr float COMP_SCALE = 0.2145f * 1.5f;   // 0.32175
+		// sekai.obj2 @スコア at .exo parent (-583.5, -471) / 150% → canvas (376.5, 69).
+		// Image scale = tempbuffer 0.2145 × parent 1.5 = 0.32175.
+		constexpr float COMP_SCALE = 0.2145f * 1.5f;
 		constexpr float COMP_CX    = 376.5f;
 		constexpr float COMP_CY    = 69.f;
 
 		const float bgCX = COMP_CX * sx;
 		const float bgCY = COMP_CY * sy;
 
-		// bg.png (2069x446) — full bar frame with SCORE label and dark slot
 		if (const Texture* t = OverlayAssets::get(assets.barBg))
 		{
 			const float w = (float)t->getWidth()  * COMP_SCALE * sx;
@@ -240,11 +222,7 @@ namespace MikuMikuWorld
 			                        Color(1.f, 1.f, 1.f, hudAlpha), 100);
 		}
 
-		// bar.png (1650x76) — gradient fill, masked by currentScore from the left.
-		// Position offset (+34, -3) is in tempbuffer coordinates which project
-		// to canvas via the .exo's 1.5x scale, independent from the 0.2145 image scale.
-		// sekai.obj2 anim_score: width = current - (current - prev) * (1 - t)^3, t ∈ [0..1]
-		// over 30 frames (0.5s). Interpolates bar fill smoothly from prev → current.
+		// sekai.obj2 anim_score: cubic ease prev → current over 30 frames.
 		const float animProgress = std::min(1.f, scoreAnimAge / 0.5f);
 		const float animFactor   = (1.f - animProgress) * (1.f - animProgress) * (1.f - animProgress);
 		const float animatedScore = currentScore - (currentScore - prevScore) * animFactor;
@@ -269,7 +247,6 @@ namespace MikuMikuWorld
 			}
 		}
 
-		// fg.png (2069x446) — rank letter glyphs positioned above the bar track
 		if (const Texture* t = OverlayAssets::get(assets.barFg))
 		{
 			const float w = (float)t->getWidth()  * COMP_SCALE * sx;
@@ -280,9 +257,6 @@ namespace MikuMikuWorld
 			                        Color(1.f, 1.f, 1.f, hudAlpha), 104);
 		}
 
-		// Big rank letter in the dark panel on the left.
-		// sekai.obj2 draws score/rank/chr/{rank}.png at tempbuffer (-188, -6)
-		// with scale 0.22, then the tempbuffer is placed at 1.5x.
 		int rankTxtTex = assets.rankTxtD;
 		{
 			int rankTex = assets.rankD;
@@ -308,8 +282,6 @@ namespace MikuMikuWorld
 			}
 		}
 
-		// "SCORE RANK" label beneath the big rank letter.
-		// sekai.obj2: obj.draw(-187, 35, 0, 0.34 * (22/130)).
 		if (const Texture* t = OverlayAssets::get(rankTxtTex))
 		{
 			constexpr float TXT_POS_SCALE   = 1.5f;
@@ -326,22 +298,14 @@ namespace MikuMikuWorld
 			                        Color(1.f, 1.f, 1.f, hudAlpha), 107);
 		}
 
-		// Numeric score display. In pjsekai's tempbuffer the leftmost digit sits
-		// at (-127, 26) and each digit advances +22 in tempbuffer units, drawn at
-		// a within-tempbuffer scale of 0.65. Tempbuffer is then placed on canvas
-		// with a 1.5x object scale, so:
-		//   canvas_pos  = composite_center + tempbuffer_xy * 1.5
-		//   canvas_size = raw_pixels * 0.65 * 1.5
-		// pjsekai displays scores as zero-padded 8-digit numbers (e.g. 00528711).
-		// anim_score also interpolates the digit value, so the readout ticks up
-		// smoothly rather than snapping on each note.
+		// Zero-padded 8-digit score (00528711), normalised so a perfect chart = 1,000,000.
 		const int displayScore = (int)std::min(99999999.f, std::max(0.f, animatedScore * 1000000.f / 0.896f));
 		char sbuf[16];
 		std::snprintf(sbuf, sizeof(sbuf), "%08d", displayScore);
 		const int slen = (int)std::strlen(sbuf);
 
-		constexpr float POS_SCALE    = 1.5f;             // tempbuffer -> canvas pixel
-		constexpr float DIGIT_SCALE  = 0.65f * 1.5f;     // image pixel scale on canvas
+		constexpr float POS_SCALE    = 1.5f;
+		constexpr float DIGIT_SCALE  = 0.65f * 1.5f;
 		constexpr float DIGIT_ADV    = 22.f;
 		constexpr float DIGIT_Y      = 26.f;
 		constexpr float DIGIT_START_X = -127.f;
@@ -361,7 +325,7 @@ namespace MikuMikuWorld
 			                        Color(1.f, 1.f, 1.f, hudAlpha), z);
 		};
 
-		// Shadow (s-prefix) pass twice for density, then the fill pass on top.
+		// sekai.obj2 draws both shadow and fill twice for density.
 		for (int i = 0; i < slen; ++i)
 		{
 			int d = sbuf[i] - '0';
@@ -369,7 +333,6 @@ namespace MikuMikuWorld
 			drawDigitImage(assets.scoreDigit[d],     i, 105);
 			drawDigitImage(assets.scoreDigit[d],     i, 105);
 		}
-		// Reference draws fill twice too (sekai.obj2:476-481) for density.
 		for (int i = 0; i < slen; ++i)
 		{
 			int d = sbuf[i] - '0';
@@ -378,11 +341,7 @@ namespace MikuMikuWorld
 			drawDigitImage(assets.scoreDigitFill[d], i, 106);
 		}
 
-		// "+xxxx" score gain animation: slide-in and fade-in to the right of
-		// the main score, disappear after ~0.5s. Matches sekai.obj2 @スコア
-		// numbers: digit scale 0.42, advance 13.65, y=+34 in tempbuffer.
-		// Reference shows the "+xxxx" for progress_frame ∈ [0, 30] (30 frames = 0.5s)
-		// and simply stops drawing afterwards — no explicit fadeout.
+		// "+xxxx" score gain slide-in. Disappears at 30 frames without a fadeout.
 		if (scoreDeltaAge < 0.5f && scoreDelta != 0)
 		{
 			const float progress = std::clamp(scoreDeltaAge / 0.2f, 0.f, 1.f);
@@ -417,11 +376,9 @@ namespace MikuMikuWorld
 				                        Color(1.f, 1.f, 1.f, alpha * hudAlpha), z);
 			};
 
-			// First glyph is the sign, followed by digits.
 			const int signShadow = negative ? assets.scoreDigitMinus : assets.scoreDigitPlus;
 			const int signFill   = negative ? assets.scoreDigitMinusFill : assets.scoreDigitPlusFill;
 
-			// Shadow pass (twice) then fill pass.
 			drawDeltaGlyph(signShadow, 0, 108);
 			drawDeltaGlyph(signShadow, 0, 108);
 			for (int i = 0; i < dlen; ++i)
@@ -448,14 +405,10 @@ namespace MikuMikuWorld
 		const float compCX = COMBO_COMP_CX * sx;
 		const float compCY = COMBO_COMP_CY * sy;
 
-		// AP pulse — math.min(1, (sin(time * pi * 4/3) + 1) / 2). Pulses 0→1 with
-		// period 1.5s. Used as the alpha of the backglow / label glow layers.
+		// AP backglow pulse: period 1.5s, 0→1.
 		const float apAlpha = std::min(1.f,
 			(std::sin(lastScoreEpoch * 3.14159265f * 4.f / 3.f) + 1.f) * 0.5f);
 
-		// "COMBO" tag — AP branch draws pe.png (glow) under pt.png.
-		// pe:  obj.draw(0, -70, 0, 0.67, ap_alpha)
-		// pt:  obj.draw(0, -67, 0, 0.67)
 		auto drawTag = [&](int texIdx, float tbY, int z, float alpha)
 		{
 			const Texture* t = OverlayAssets::get(texIdx);
@@ -472,9 +425,6 @@ namespace MikuMikuWorld
 		drawTag(assets.comboLabelGlow, -70.f, 109, apAlpha);
 		drawTag(assets.comboLabel,     -67.f, 110, 1.f);
 
-		// Digits — obj.draw(shift * 72 * shift_fax, 0, 0, 0.70 * shift_fax).
-		//   shift      = -(len/2) + i - 0.5  (i = 1..len, 1-indexed in the script)
-		//   shift_fax  = min(1, progress_frames/8 * 0.5 + 0.5), grows 0.5 → 1.0
 		char buf[16];
 		std::snprintf(buf, sizeof(buf), "%d", currentCombo);
 		const int len = (int)std::strlen(buf);
@@ -507,9 +457,8 @@ namespace MikuMikuWorld
 			drawDigit(assets.comboDigit[d],     i, 112, 1.f);
 		}
 
-		// Ghost fade-out overlay (sekai.obj2:598-634). Re-draws the same digits
-		// with alpha = 1 - progress/14 over 14 frames and an UNCLAMPED shift_fax
-		// that continues to grow past 1.0, so the ghost pops outward while fading.
+		// Ghost pop-out layered on top of the static digits. shift_fax is
+		// UNCLAMPED here, unlike the main pass, so the ghost grows past 1.0.
 		if (progressFrames < 14.f)
 		{
 			const float ghostShiftFax = (progressFrames / 8.f) * 0.5f + 0.5f;
@@ -541,8 +490,7 @@ namespace MikuMikuWorld
 			}
 		}
 
-		// n00 combo burst overlay (sekai.obj2:635-661). Independent timer; scales
-		// dramatically and fades out over 14 frames at every 100-combo milestone.
+		// n00 milestone burst. Independent timer from the per-note pop.
 		const float burstFrames = comboBurstAge * COMBO_FPS;
 		if (comboBurstValue > 0 && burstFrames < 14.f)
 		{
@@ -595,12 +543,7 @@ namespace MikuMikuWorld
 	{
 		if (!assets.hasLife()) return;
 
-		// Layout derived from pjsekai-overlay-APPEND main_jp_16-9_1920x1080.exo
-		// + sekai.obj2 @ライフ block:
-		//   parent object at (X=705, Y=-477.5) with 拡大率 17.33% on 1920x1080
-		//     → canvas center (960+705, 540-477.5) = (1665, 62.5)
-		//   script draws everything inside the tempbuffer at scale 1, so the
-		//   tempbuffer pixel → canvas pixel factor is exactly 0.1733.
+		// sekai.obj2 @ライフ at .exo parent (705, -477.5) / 17.33% → canvas (1665, 62.5).
 		constexpr float COMP_CX    = 1665.f;
 		constexpr float COMP_CY    =   62.5f;
 		constexpr float COMP_SCALE = 0.1733f;
@@ -608,7 +551,6 @@ namespace MikuMikuWorld
 		const float cx = COMP_CX * sx;
 		const float cy = COMP_CY * sy;
 
-		// bg.png (2560x600) — empty life frame / "LIFE" label
 		if (const Texture* t = OverlayAssets::get(assets.lifeBg))
 		{
 			const float w = (float)t->getWidth()  * COMP_SCALE * sx;
@@ -619,8 +561,7 @@ namespace MikuMikuWorld
 			                        Color(1.f, 1.f, 1.f, hudAlpha), 100);
 		}
 
-		// Preview simulates a perfect play, so life stays at max (1000/1000)
-		// and the fill graphic is drawn unmasked — covering the full bg track.
+		// Preview assumes a perfect play, so life stays at max and the fill is unmasked.
 		constexpr int lifeValue = 1000;
 
 		if (const Texture* t = OverlayAssets::get(assets.lifeNormal))
@@ -633,8 +574,6 @@ namespace MikuMikuWorld
 			                        Color(1.f, 1.f, 1.f, hudAlpha), 101);
 		}
 
-		// Digit string: right-aligned at tempbuffer (563, -145), advancing
-		// -127 per additional digit, drawn at image-scale 0.147 in tempbuffer.
 		char buf[16];
 		std::snprintf(buf, sizeof(buf), "%d", lifeValue);
 		const int dlen = (int)std::strlen(buf);
@@ -659,7 +598,6 @@ namespace MikuMikuWorld
 			                        Color(1.f, 1.f, 1.f, hudAlpha), z);
 		};
 
-		// Shadow (s-prefix) pass then fill pass on top.
 		for (int i = 0; i < dlen; ++i)
 		{
 			int d = buf[dlen - 1 - i] - '0';
@@ -680,11 +618,7 @@ namespace MikuMikuWorld
 		const Texture* t = OverlayAssets::get(assets.judgePerfect);
 		if (!t) return;
 
-		// sekai.obj2 @判定: obj.draw uses zoom = (2/3) * factor where
-		//   factor(progress) = 1 - (-1.45 + progress/4)^4 in phase 2,
-		//   factor = 1          in phase 3,
-		// and alpha = 0 before phase 2. Parent scale 1.5 cancels the 2/3, so
-		// on-canvas scale equals factor directly.
+		// sekai.obj2 @判定 pop easing. Parent 1.5x cancels the 2/3 tempbuffer scale.
 		const float elapsed = JUDGE_DURATION - judgmentFlashTimer;
 		const float progressFrames = elapsed * JUDGE_FPS;
 
@@ -719,8 +653,7 @@ namespace MikuMikuWorld
 		unsigned int texId = apVideo.getGLTexture();
 		if (!texId) return;
 
-		// Draw as a full-screen quad. We bypass the Texture wrapper and push
-		// a raw quad with the video's GL texture.
+		// Push a raw quad because the video texture is owned outside ResourceManager.
 		std::array<DirectX::XMFLOAT4, 4> pos{
 			DirectX::XMFLOAT4{ vpW, 0.f,   0.f, 1.f },
 			DirectX::XMFLOAT4{ vpW, vpH,   0.f, 1.f },
@@ -737,10 +670,6 @@ namespace MikuMikuWorld
 		renderer->pushQuad(pos, uv, DirectX::XMMatrixIdentity(), color, (int)texId, 200);
 	}
 
-	// ---------------------------------------------------------------------
-	// Pass entry points
-	// ---------------------------------------------------------------------
-
 	void Overlay::beginIntro(float offsetSeconds, const OverlayIntroData& data)
 	{
 		introOffset = std::max(0.f, offsetSeconds);
@@ -756,20 +685,16 @@ namespace MikuMikuWorld
 
 	namespace
 	{
-		// AviUtl exo → screen pixels (center origin, Y+ = down)
+		// AviUtl exo is center-origin with Y+ down.
 		constexpr float LAYOUT_CX = LAYOUT_WIDTH * 0.5f;
 		constexpr float LAYOUT_CY = LAYOUT_HEIGHT * 0.5f;
 
 		inline float exoX(float v) { return LAYOUT_CX + v; }
 		inline float exoY(float v) { return LAYOUT_CY + v; }
 
-		// 透明度 (transparency, 0..100) → opacity (1..0)
 		inline float opacityFromTransparency(float t) { return std::clamp(1.f - t / 100.f, 0.f, 1.f); }
 
-		// start_grad Y keyframe: Y=1500 → 0 with deceleration (減速@加減速TRA).
-		// In the reference .object the transition spans the full object lifetime
-		// (120 frames per wave), not the 15 that the legacy .exo mode-int looked
-		// like. Easing is ease-out quadratic: 1 - (1 - u)^2.
+		// start_grad (.object [3][4]): Y 1500 → 0 over 120 frames, ease-out quadratic.
 		constexpr float START_GRAD_SPAN_FRAMES = 120.f;
 		float startGradY(float localFrames)
 		{
@@ -781,8 +706,7 @@ namespace MikuMikuWorld
 			return 1500.f * (1.f - eased);
 		}
 
-		// Object [6] in the .object: layer=3 frame=270..299 透明度=0→100 直線移動.
-		// Intro card fades out linearly over 30 frames starting at 4.5s.
+		// Intro card fade-out (.object [6]): frame 270..299 linear α 1→0.
 		float introFadeOutAlpha(float videoTime)
 		{
 			const float frame = videoTime * 60.f;
@@ -791,9 +715,7 @@ namespace MikuMikuWorld
 			return 1.f - (frame - 270.f) / 29.f;
 		}
 
-		// Object [5] in the .object: layer=3 frame=0..111 group control,
-		// X=43→0 Y=-43→0 with 減速 (deceleration). Slides the difficulty badge
-		// and difficulty text out from behind the jacket toward the bottom-left.
+		// Difficulty badge / text slide-in (.object [5]): X 43 → 0, Y -43 → 0 over 112 frames.
 		constexpr float DIFF_SLIDE_SPAN_FRAMES = 112.f;
 		struct ExoOffset { float x; float y; };
 		ExoOffset diffBadgeSlideOffset(float videoTime)
@@ -812,7 +734,7 @@ namespace MikuMikuWorld
 	void Overlay::drawIntroBackground(Renderer* renderer, float sx, float sy, float videoTime)
 	{
 		(void)videoTime;
-		// Object [1]: solid rectangle #68689c (full canvas @ 150%), 透明度=20 → α=0.80
+		// .object [1]: solid #68689c at α=0.80.
 		text.drawSolidRect(renderer, 0.f, 0.f,
 		                   LAYOUT_WIDTH * sx, LAYOUT_HEIGHT * sy,
 		                   Color(0x68 / 255.f, 0x68 / 255.f, 0x9c / 255.f, 0.80f), 70);
@@ -823,8 +745,7 @@ namespace MikuMikuWorld
 		const Texture* t = OverlayAssets::get(assets.startGrad);
 		if (!t) return;
 
-		// Wave 1 (frames 61-180) and Wave 2 (frames 181-300), each slides Y=1500 → 0
-		// over the object lifetime with deceleration then holds. 透明度=90 → α=0.10.
+		// Two waves slide Y=1500→0 at 透明度=90 (α=0.10) then hold.
 		const float alpha = 0.10f * introFadeOutAlpha(videoTime);
 		const float frame = videoTime * 60.f;
 
@@ -834,8 +755,6 @@ namespace MikuMikuWorld
 			const float local = frame - startFrame;
 			const float yOffset = startGradY(local);
 
-			// Parent scale 150% on exo canvas. Image dims already cover most of the
-			// canvas width at this scale; render centered at screen (960, 540+yOffset).
 			const float w = (float)t->getWidth()  * 1.5f * sx;
 			const float h = (float)t->getHeight() * 1.5f * sy;
 			const float cx = exoX(0.f) * sx;
@@ -846,7 +765,6 @@ namespace MikuMikuWorld
 			                        Color(1.f, 1.f, 1.f, alpha), 72);
 		};
 
-		// Reference .object frames: wave1 = 60..179, wave2 = 180..299 (inclusive).
 		drawWave(60.f, 180.f);
 		drawWave(180.f, 300.f);
 	}
@@ -857,8 +775,7 @@ namespace MikuMikuWorld
 		const float alpha = introFadeOutAlpha(videoTime);
 		if (alpha <= 0.f) return;
 
-		// Difficulty badge (object [8]): pos (-661.5, 288), 拡大率 39.26% of 1024x1024.
-		// Slides out from behind the jacket via group control [5] over 112 frames.
+		// .object [8]: difficulty badge at (-661.5, 288), 39.26%.
 		if (const Texture* t = OverlayAssets::get(assets.difficultyBg(introData.difficulty)))
 		{
 			const auto off = diffBadgeSlideOffset(videoTime);
@@ -873,10 +790,10 @@ namespace MikuMikuWorld
 			                        Color(1.f, 1.f, 1.f, alpha), 90);
 		}
 
-		// Cover (object [23]): pos (-618, 245), 拡大率 78.75%, source assumed 512x512
+		// .object [23]: jacket at (-618, 245), 78.75% of a 512x512 source.
 		if (const Texture* t = jacket.getTexture())
 		{
-			const float target = 512.f * 0.7875f; // 403.2px on a 1920x1080 canvas
+			const float target = 512.f * 0.7875f;
 			const float w = target * sx;
 			const float h = target * sy;
 			const float cx = exoX(-618.f) * sx;
@@ -896,8 +813,7 @@ namespace MikuMikuWorld
 		const float unit = std::min(sx, sy);
 		const Color white(1.f, 1.f, 1.f, alpha);
 
-		// Difficulty text (main2 .object): pos (-855, 446), size 84, 拡大率 38%, left-top anchor.
-		// Shares the group control [5] slide-in with the difficulty badge.
+		// .object [10]: difficulty text at (-855, 446), size 84 × 38%. Shares [5]'s slide-in.
 		{
 			std::string up;
 			up.reserve(introData.difficulty.size());
@@ -909,7 +825,7 @@ namespace MikuMikuWorld
 			              scale, white, 122, TextAlign::Left);
 		}
 
-		// Extra text (object [15]) — e.g. "Lv. 30" above the title.
+		// .object [15]: extra/level text above the title (e.g. "Lv. 30").
 		if (!introData.extra.empty())
 		{
 			const float scale = 27.f / 64.f * unit;
@@ -918,7 +834,7 @@ namespace MikuMikuWorld
 			              scale, white, 122, TextAlign::Left);
 		}
 
-		// Title (main2 .object): pos (-378.5, 274), size 96, 拡大率 40%, left-top anchor.
+		// .object [14]: title at (-378.5, 274), size 96 × 40%.
 		if (!introData.title.empty())
 		{
 			const float scale = 96.f * 0.40f / 64.f * unit;
@@ -927,7 +843,7 @@ namespace MikuMikuWorld
 			              scale, white, 122, TextAlign::Left);
 		}
 
-		// Description lines (objects [19] and [21])
+		// .object [16][18]: description lines.
 		auto formatDescription = [&]() -> std::pair<std::string, std::string>
 		{
 			auto dashIfEmpty = [](const std::string& s) { return s.empty() ? "-" : s; };
@@ -980,7 +896,7 @@ namespace MikuMikuWorld
 		const float sx = vpWidth / LAYOUT_WIDTH;
 		const float sy = vpHeight / LAYOUT_HEIGHT;
 
-		// Post-intro HUD fade-in: .object [2] 透明度 100→0 over frames 300..395.
+		// Post-intro HUD fade-in (.object [2]): frames 300..395.
 		hudAlpha = 1.f;
 		if (introOffset > 0.f)
 		{
@@ -994,9 +910,7 @@ namespace MikuMikuWorld
 		{
 			if (isApPlaying())
 			{
-				// Let the AP takeover carry the moment — skip lower-priority HUD.
-				// main2 .object [26]: full-screen black at 50% opacity behind the
-				// AP video for the entire outro (frame 3620..4000).
+				// .object [26]: black α=0.5 dim behind the AP video. Skips other HUD.
 				text.drawSolidRect(renderer, 0.f, 0.f,
 				                   vpWidth, vpHeight,
 				                   Color(0.f, 0.f, 0.f, 0.5f), 150);
@@ -1025,21 +939,17 @@ namespace MikuMikuWorld
 		const float sx = vpWidth / LAYOUT_WIDTH;
 		const float sy = vpHeight / LAYOUT_HEIGHT;
 
-		// Intro overlay-specific text (title / description / difficulty label).
 		if (isIntroShowing(chartTime))
 		{
 			const float videoTime = chartTime + introOffset;
 			drawIntroText(renderer, sx, sy, videoTime);
 		}
 
-		// main2 .object [29][30]: final black fade-in on top of the AP video.
-		// Frame 3891..3935 linearly ramps transparency 100→0, i.e. alpha 0→1
-		// over 44 frames (~0.73s), then holds fully black. AP video starts at
-		// frame 3620 so in AP-local time: fade begins at 4.52s, completes at 5.25s.
+		// .object [29][30]: α 0→1 black fade-in over AP-local 4.52..5.25s, then hold.
 		if (isApPlaying())
 		{
-			constexpr float FADE_START = 271.f / 60.f;   // 4.5167s
-			constexpr float FADE_END   = 315.f / 60.f;   // 5.25s
+			constexpr float FADE_START = 271.f / 60.f;
+			constexpr float FADE_END   = 315.f / 60.f;
 			if (allPerfectTimer >= FADE_START)
 			{
 				float alpha = 1.f;
