@@ -656,11 +656,14 @@ namespace MikuMikuWorld
 		// 透明度 (transparency, 0..100) → opacity (1..0)
 		inline float opacityFromTransparency(float t) { return std::clamp(1.f - t / 100.f, 0.f, 1.f); }
 
-		// start_grad Y keyframe (frame 0..15 of its own lifetime): Y=1500 → 0 with
-		// deceleration. Easing is approximately 1 - (1 - u)^2.
+		// start_grad Y keyframe: Y=1500 → 0 with deceleration (減速@加減速TRA).
+		// In the reference .object the transition spans the full object lifetime
+		// (120 frames per wave), not the 15 that the legacy .exo mode-int looked
+		// like. Easing is ease-out quadratic: 1 - (1 - u)^2.
+		constexpr float START_GRAD_SPAN_FRAMES = 120.f;
 		float startGradY(float localFrames)
 		{
-			const float span = 15.f;
+			const float span = START_GRAD_SPAN_FRAMES;
 			if (localFrames >= span) return 0.f;
 			if (localFrames <= 0.f) return 1500.f;
 			float u = localFrames / span;
@@ -771,17 +774,15 @@ namespace MikuMikuWorld
 		const float unit = std::min(sx, sy);
 		const Color white(1.f, 1.f, 1.f, 1.f);
 
-		// Difficulty text (object [12]) — MASTER/EXPERT/... rendered over the badge.
-		// Original: align=center within auto-resized box at (-855, 486). Anchor the
-		// text on the badge center for a visual that actually reads.
+		// Difficulty text (main2 .object): pos (-855, 446), size 84, 拡大率 38%, left-top anchor.
 		{
 			std::string up;
 			up.reserve(introData.difficulty.size());
 			for (char c : introData.difficulty) up.push_back((char)std::toupper((unsigned char)c));
-			const float scale = 54.f / 64.f * unit;
+			const float scale = 84.f * 0.38f / 64.f * unit;
 			text.drawText(renderer, up,
-			              exoX(-661.5f) * sx, exoY(288.f) * sy,
-			              scale, white, 122, TextAlign::Center);
+			              exoX(-855.f) * sx, exoY(446.f) * sy,
+			              scale, white, 122, TextAlign::Left);
 		}
 
 		// Extra text (object [15]) — e.g. "Lv. 30" above the title.
@@ -793,12 +794,12 @@ namespace MikuMikuWorld
 			              scale, white, 122, TextAlign::Left);
 		}
 
-		// Title (object [17])
+		// Title (main2 .object): pos (-378.5, 274), size 96, 拡大率 40%, left-top anchor.
 		if (!introData.title.empty())
 		{
-			const float scale = 38.f / 64.f * unit;
+			const float scale = 96.f * 0.40f / 64.f * unit;
 			text.drawText(renderer, introData.title,
-			              exoX(-378.5f) * sx, exoY(324.f) * sy,
+			              exoX(-378.5f) * sx, exoY(274.f) * sy,
 			              scale, white, 122, TextAlign::Left);
 		}
 
