@@ -280,7 +280,7 @@ namespace MikuMikuWorld
 	{
 	}
 
-	void ScorePreviewWindow::update(ScoreContext& context, Renderer* renderer)
+	void ScorePreviewWindow::update(ScoreContext& context, Renderer* renderer, ScoreEditorTimeline& timeline)
 	{
 		bool isWindowActive =  !ImGui::IsWindowDocked() || ImGui::GetCurrentWindow()->TabId == ImGui::GetWindowDockNode()->SelectedTabId;
 		if (!isWindowActive)
@@ -296,8 +296,34 @@ namespace MikuMikuWorld
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
 		drawList->AddRectFilled(boundaries.Min, boundaries.Max, 0xff202020);
 
-		float currentTime = context.getTimeAtCurrentTick();
-		renderToFramebuffer(context, renderer, size.x, size.y, currentTime, playbackState.isPlaying);
+		// Keep the timeline's pre-roll state in sync with the chart property toggle.
+		const bool introEnabled = context.workingData.introEnabled;
+		timeline.setPreroll(introEnabled ? Overlay::INTRO_OFFSET_SECONDS : 0.0f);
+
+		const bool isPlaying = playbackState.isPlaying;
+		// During playback `time` can go negative while the intro is pre-rolling; the
+		// tick-derived time clamps to zero and would hide the intro animation.
+		const float currentTime = isPlaying ? timeline.getTime() : context.getTimeAtCurrentTick();
+
+		// Push the intro configuration just after play starts so workingData edits take
+		// effect on the next playback without affecting other renderers (e.g. offline).
+		if (isPlaying && !playbackState.wasLastFramePlaying)
+		{
+			if (introEnabled && timeline.getTime() < 0.0f)
+			{
+				OverlayIntroData data;
+				data.title       = context.workingData.title;
+				data.composer    = context.workingData.artist;
+				data.chartAuthor = context.workingData.designer;
+				overlay.beginIntro(Overlay::INTRO_OFFSET_SECONDS, data);
+			}
+			else
+			{
+				overlay.beginIntro(0.0f, {});
+			}
+		}
+
+		renderToFramebuffer(context, renderer, size.x, size.y, currentTime, isPlaying);
 
 		drawList->AddImage((ImTextureID)(size_t)previewBuffer.getTexture(), position, position + size, {0, 1}, {1, 0});
 	}

@@ -73,7 +73,7 @@ namespace MikuMikuWorld
 	public:
 		ScorePreviewWindow();
 		~ScorePreviewWindow();
-		void update(ScoreContext& context, Renderer* renderer);
+		void update(ScoreContext& context, Renderer* renderer, ScoreEditorTimeline& timeline);
 		void updateUI(ScoreEditorTimeline& timeline, ScoreContext& context);
 
 		// Render pure GL contents of the preview to the internal framebuffer.

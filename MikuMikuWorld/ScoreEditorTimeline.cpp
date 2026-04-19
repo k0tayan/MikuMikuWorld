@@ -853,6 +853,8 @@ namespace MikuMikuWorld
 				config.returnToLastSelectedTickOnPause = prevPauseBehaviour;
 			}
 
+			// Negative tick during the intro pre-roll lets the preview draw notes
+			// sliding in from above (matches the offline renderer).
 			context.currentTick = accumulateTicks(time, TICKS_PER_BEAT, context.score.tempoChanges);
 
 			float cursorY = tickToPosition(context.currentTick);
@@ -2375,8 +2377,14 @@ namespace MikuMikuWorld
 		if (playing)
 		{
 			dragging = false;
+			// Apply the intro pre-roll only when starting from the very beginning.
+			// Negative time keeps notes/SE dormant and schedules the music to begin
+			// `prerollSeconds` in the future (see AudioManager::playMusic).
+			const bool applyPreroll = prerollSeconds > 0.0f && context.currentTick == 0;
+			if (applyPreroll)
+				time = -prerollSeconds;
 			playStartTime = time;
-			context.audio.seekMusic(time);
+			context.audio.seekMusic(time < 0.0f ? 0.0f : time);
 			context.audio.playMusic(time);
 			context.audio.setLastPlaybackTime(time);
 			context.audio.syncAudioEngineTimer();
