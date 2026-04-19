@@ -9,8 +9,10 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <utility>
 
 namespace MikuMikuWorld
 {
@@ -629,38 +631,222 @@ namespace MikuMikuWorld
 	// Pass entry points
 	// ---------------------------------------------------------------------
 
-	void Overlay::drawJacketPass(Renderer* renderer, float vpWidth, float vpHeight,
-	                             const Jacket& jacket)
+	void Overlay::beginIntro(float offsetSeconds, const OverlayIntroData& data)
+	{
+		introOffset = std::max(0.f, offsetSeconds);
+		introData = data;
+	}
+
+	bool Overlay::isIntroShowing(float chartTime) const
+	{
+		if (introOffset <= 0.f) return false;
+		const float videoTime = chartTime + introOffset;
+		return videoTime >= 0.f && videoTime < 5.0f;
+	}
+
+	namespace
+	{
+		// AviUtl exo → screen pixels (center origin, Y+ = down)
+		constexpr float LAYOUT_CX = LAYOUT_WIDTH * 0.5f;
+		constexpr float LAYOUT_CY = LAYOUT_HEIGHT * 0.5f;
+
+		inline float exoX(float v) { return LAYOUT_CX + v; }
+		inline float exoY(float v) { return LAYOUT_CY + v; }
+
+		// 透明度 (transparency, 0..100) → opacity (1..0)
+		inline float opacityFromTransparency(float t) { return std::clamp(1.f - t / 100.f, 0.f, 1.f); }
+
+		// start_grad Y keyframe (frame 0..15 of its own lifetime): Y=1500 → 0 with
+		// deceleration. Easing is approximately 1 - (1 - u)^2.
+		float startGradY(float localFrames)
+		{
+			const float span = 15.f;
+			if (localFrames >= span) return 0.f;
+			if (localFrames <= 0.f) return 1500.f;
+			float u = localFrames / span;
+			float eased = 1.f - (1.f - u) * (1.f - u);
+			return 1500.f * (1.f - eased);
+		}
+	}
+
+	void Overlay::drawIntroBackground(Renderer* renderer, float sx, float sy, float videoTime)
+	{
+		(void)videoTime;
+		// Object [1]: solid rectangle #68689c (full canvas @ 150%), 透明度=20 → α=0.80
+		text.drawSolidRect(renderer, 0.f, 0.f,
+		                   LAYOUT_WIDTH * sx, LAYOUT_HEIGHT * sy,
+		                   Color(0x68 / 255.f, 0x68 / 255.f, 0x9c / 255.f, 0.80f), 70);
+	}
+
+	void Overlay::drawIntroStartGrad(Renderer* renderer, float sx, float sy, float videoTime)
+	{
+		const Texture* t = OverlayAssets::get(assets.startGrad);
+		if (!t) return;
+
+		// Wave 1 (frames 61-180) and Wave 2 (frames 181-300), each slides Y=1500 → 0
+		// over 15 frames with deceleration then holds. 透明度=90 → α=0.10.
+		const float alpha = 0.10f;
+		const float frame = videoTime * 60.f;
+
+		auto drawWave = [&](float startFrame, float endFrame)
+		{
+			if (frame < startFrame || frame >= endFrame) return;
+			const float local = frame - startFrame;
+			const float yOffset = startGradY(local);
+
+			// Parent scale 150% on exo canvas. Image dims already cover most of the
+			// canvas width at this scale; render centered at screen (960, 540+yOffset).
+			const float w = (float)t->getWidth()  * 1.5f * sx;
+			const float h = (float)t->getHeight() * 1.5f * sy;
+			const float cx = exoX(0.f) * sx;
+			const float cy = exoY(yOffset) * sy;
+			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h }, *t,
+			                        0.f, (float)t->getWidth(),
+			                        0.f, (float)t->getHeight(),
+			                        Color(1.f, 1.f, 1.f, alpha), 72);
+		};
+
+		drawWave(61.f, 180.f);
+		drawWave(181.f, 300.f);
+	}
+
+	void Overlay::drawIntroWhiteFlash(Renderer* renderer, float sx, float sy, float videoTime)
+	{
+		// Object [27]: full-screen white, frames 1-60 fully opaque. Object [25] then
+		// drives a fade from frame 61 to 91 (30 frames) back to transparent. Keep
+		// the flash alive across the union so the fade is smooth.
+		const float frame = videoTime * 60.f;
+		if (frame < 1.f || frame >= 91.f) return;
+
+		float alpha = 1.f;
+		if (frame >= 61.f)
+			alpha = std::clamp(1.f - (frame - 61.f) / 30.f, 0.f, 1.f);
+
+		text.drawSolidRect(renderer, 0.f, 0.f,
+		                   LAYOUT_WIDTH * sx, LAYOUT_HEIGHT * sy,
+		                   Color(1.f, 1.f, 1.f, alpha), 180);
+	}
+
+	void Overlay::drawIntroCard(Renderer* renderer, float sx, float sy, float videoTime,
+	                            const Jacket& jacket)
+	{
+		// Object [6]: all card items fade out at frame 271 over ~1 frame. Treat as
+		// instant disappearance just after 4.5s.
+		if (videoTime * 60.f >= 272.f) return;
+
+		// Difficulty badge (object [8]): pos (-661.5, 288), 拡大率 39.26% of 1024x1024.
+		// Acts as a colored backdrop for the jacket (rendered below it).
+		if (const Texture* t = OverlayAssets::get(assets.difficultyBg(introData.difficulty)))
+		{
+			const float target = 1024.f * 0.3926f;
+			const float w = target * sx;
+			const float h = target * sy;
+			const float cx = exoX(-661.5f) * sx;
+			const float cy = exoY(288.f)   * sy;
+			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h }, *t,
+			                        0.f, (float)t->getWidth(),
+			                        0.f, (float)t->getHeight(),
+			                        Color(1.f, 1.f, 1.f, 1.f), 90);
+		}
+
+		// Cover (object [23]): pos (-618, 245), 拡大率 78.75%, source assumed 512x512
+		if (const Texture* t = jacket.getTexture())
+		{
+			const float target = 512.f * 0.7875f; // 403.2px on a 1920x1080 canvas
+			const float w = target * sx;
+			const float h = target * sy;
+			const float cx = exoX(-618.f) * sx;
+			const float cy = exoY(245.f)  * sy;
+			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h }, *t,
+			                        0.f, (float)t->getWidth(),
+			                        0.f, (float)t->getHeight(),
+			                        Color(1.f, 1.f, 1.f, 1.f), 91);
+		}
+	}
+
+	void Overlay::drawIntroText(Renderer* renderer, float sx, float sy, float videoTime)
+	{
+		if (videoTime * 60.f >= 272.f) return;
+
+		const float unit = std::min(sx, sy);
+		const Color white(1.f, 1.f, 1.f, 1.f);
+
+		// Difficulty text (object [12]) — MASTER/EXPERT/... rendered over the badge.
+		// Original: align=center within auto-resized box at (-855, 486). Anchor the
+		// text on the badge center for a visual that actually reads.
+		{
+			std::string up;
+			up.reserve(introData.difficulty.size());
+			for (char c : introData.difficulty) up.push_back((char)std::toupper((unsigned char)c));
+			const float scale = 54.f / 64.f * unit;
+			text.drawText(renderer, up,
+			              exoX(-661.5f) * sx, exoY(288.f) * sy,
+			              scale, white, 122, TextAlign::Center);
+		}
+
+		// Extra text (object [15]) — e.g. "Lv. 30" above the title.
+		if (!introData.extra.empty())
+		{
+			const float scale = 27.f / 64.f * unit;
+			text.drawText(renderer, introData.extra,
+			              exoX(-380.f) * sx, exoY(200.f) * sy,
+			              scale, white, 122, TextAlign::Left);
+		}
+
+		// Title (object [17])
+		if (!introData.title.empty())
+		{
+			const float scale = 38.f / 64.f * unit;
+			text.drawText(renderer, introData.title,
+			              exoX(-378.5f) * sx, exoY(324.f) * sy,
+			              scale, white, 122, TextAlign::Left);
+		}
+
+		// Description lines (objects [19] and [21])
+		auto formatDescription = [&]() -> std::pair<std::string, std::string>
+		{
+			auto dashIfEmpty = [](const std::string& s) { return s.empty() ? "-" : s; };
+			const std::string& lyr = introData.lyricist;
+			const std::string& cmp = introData.composer;
+			const std::string& arr = introData.arranger;
+			const std::string& voc = introData.vocal;
+			const std::string& aut = introData.chartAuthor;
+			if (introData.useEnglish)
+			{
+				return {
+					"Lyrics: " + dashIfEmpty(lyr) + "    Music: " + dashIfEmpty(cmp) + "    Arrangement: " + dashIfEmpty(arr),
+					"Vocals: " + dashIfEmpty(voc) + "    Chart Design: " + dashIfEmpty(aut),
+				};
+			}
+			return {
+				"作詞：" + dashIfEmpty(lyr) + "    作曲：" + dashIfEmpty(cmp) + "    編曲：" + dashIfEmpty(arr),
+				"Vo：" + dashIfEmpty(voc) + "    譜面制作：" + dashIfEmpty(aut),
+			};
+		};
+
+		auto [desc1, desc2] = formatDescription();
+		const float descScale = 27.f / 64.f * unit;
+		text.drawText(renderer, desc1,
+		              exoX(-380.f) * sx, exoY(364.5f) * sy,
+		              descScale, white, 122, TextAlign::Left);
+		text.drawText(renderer, desc2,
+		              exoX(-380.f) * sx, exoY(413.f) * sy,
+		              descScale, white, 122, TextAlign::Left);
+	}
+
+	void Overlay::drawIntroPass(Renderer* renderer, float vpWidth, float vpHeight,
+	                            const Jacket& jacket, float chartTime)
 	{
 		if (vpWidth <= 0.f || vpHeight <= 0.f) return;
-
-		const int texId = jacket.getTexID();
-		if (texId <= 0) return;
-
-		int texIndex = -1;
-		for (int i = 0; i < (int)ResourceManager::textures.size(); ++i)
-		{
-			if ((int)ResourceManager::textures[i].getID() == texId)
-			{
-				texIndex = i;
-				break;
-			}
-		}
-		if (texIndex < 0) return;
-		const Texture& t = ResourceManager::textures[texIndex];
+		if (!isIntroShowing(chartTime)) return;
 
 		const float sx = vpWidth / LAYOUT_WIDTH;
 		const float sy = vpHeight / LAYOUT_HEIGHT;
+		const float videoTime = chartTime + introOffset;
 
-		const float x = 36.f * sx;
-		const float y = 36.f * sy;
-		const float w = 180.f * sx;
-		const float h = 180.f * sy;
-
-		renderer->drawRectangle({ x, y }, { w, h }, t,
-		                        0.f, (float)t.getWidth(),
-		                        0.f, (float)t.getHeight(),
-		                        Color(1.f, 1.f, 1.f, 1.f), 92);
+		drawIntroBackground(renderer, sx, sy, videoTime);
+		drawIntroStartGrad(renderer, sx, sy, videoTime);
+		drawIntroCard(renderer, sx, sy, videoTime, jacket);
 	}
 
 	void Overlay::drawAssetPass(Renderer* renderer, float vpWidth, float vpHeight)
@@ -692,29 +878,19 @@ namespace MikuMikuWorld
 	}
 
 	void Overlay::drawTextPass(Renderer* renderer, float vpWidth, float vpHeight,
-	                           const ScoreContext& context)
+	                           const ScoreContext& context, float chartTime)
 	{
+		(void)context;
 		if (!isInitialized() || vpWidth <= 0.f || vpHeight <= 0.f) return;
 		const float sx = vpWidth / LAYOUT_WIDTH;
 		const float sy = vpHeight / LAYOUT_HEIGHT;
 
-		// Jacket caption (title + artist) stays as text.
-		const float unit = std::min(sx, sy);
-		if (!context.workingData.title.empty())
+		// Intro overlay-specific text (title / description / difficulty label).
+		if (isIntroShowing(chartTime))
 		{
-			const float titleScale = 40.f / 64.f * unit;
-			text.drawText(renderer, context.workingData.title,
-			              232.f * sx, 56.f * sy,
-			              titleScale, Color(1.f, 1.f, 1.f, 0.95f), 120, TextAlign::Left);
+			const float videoTime = chartTime + introOffset;
+			drawIntroWhiteFlash(renderer, sx, sy, videoTime);
+			drawIntroText(renderer, sx, sy, videoTime);
 		}
-		if (!context.workingData.artist.empty())
-		{
-			const float artistScale = 26.f / 64.f * unit;
-			text.drawText(renderer, context.workingData.artist,
-			              232.f * sx, 118.f * sy,
-			              artistScale, Color(1.f, 1.f, 1.f, 0.75f), 120, TextAlign::Left);
-		}
-
-		// Score value now comes from the asset-based digit drawing in drawScoreBarAssets.
 	}
 }

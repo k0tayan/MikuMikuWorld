@@ -13,6 +13,19 @@ namespace MikuMikuWorld
 	struct ScoreContext;
 	class Jacket;
 
+	struct OverlayIntroData
+	{
+		std::string difficulty{ "master" }; // easy/normal/hard/expert/master/append
+		std::string extra;                   // optional level/tag text (e.g. "Lv.30")
+		std::string title;
+		std::string lyricist;
+		std::string composer;
+		std::string arranger;
+		std::string vocal;
+		std::string chartAuthor;
+		bool useEnglish{ false };
+	};
+
 	class Overlay
 	{
 	public:
@@ -28,13 +41,19 @@ namespace MikuMikuWorld
 		void update(const Score& score, float currentTime, bool isPlaying);
 		void reset();
 
+		// Enable the pre-chart intro. `offsetSeconds` must match the delay applied
+		// to music and notes (video time = chart time + offset).
+		void beginIntro(float offsetSeconds, const OverlayIntroData& data);
+		bool isIntroEnabled() const { return introOffset > 0.f; }
+		bool isIntroShowing(float chartTime) const;
+
 		// Draw passes split by shader / blend mode.
-		void drawJacketPass(Renderer* renderer, float vpWidth, float vpHeight,
-		                    const Jacket& jacket);
+		void drawIntroPass(Renderer* renderer, float vpWidth, float vpHeight,
+		                   const Jacket& jacket, float chartTime);
 		void drawAssetPass(Renderer* renderer, float vpWidth, float vpHeight);
 		void drawAdditivePass(Renderer* renderer, float vpWidth, float vpHeight);
 		void drawTextPass(Renderer* renderer, float vpWidth, float vpHeight,
-		                  const ScoreContext& context);
+		                  const ScoreContext& context, float chartTime);
 
 		bool isApPlaying() const { return allPerfectTriggered && apVideo.isOpen(); }
 
@@ -78,5 +97,15 @@ namespace MikuMikuWorld
 		void drawJudgmentAsset(Renderer* renderer, float sx, float sy);
 		void drawLifeAssets(Renderer* renderer, float sx, float sy);
 		void drawApVideo(Renderer* renderer, float sx, float sy, float vpW, float vpH);
+
+		// Intro (pre-chart) draw helpers
+		float introOffset{ 0.f };
+		OverlayIntroData introData;
+		void drawIntroBackground(Renderer* renderer, float sx, float sy, float videoTime);
+		void drawIntroStartGrad(Renderer* renderer, float sx, float sy, float videoTime);
+		void drawIntroWhiteFlash(Renderer* renderer, float sx, float sy, float videoTime);
+		void drawIntroCard(Renderer* renderer, float sx, float sy, float videoTime,
+		                   const Jacket& jacket);
+		void drawIntroText(Renderer* renderer, float sx, float sy, float videoTime);
 	};
 }

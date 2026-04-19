@@ -96,5 +96,23 @@ namespace MikuMikuWorld
 
 		const std::string apMp4 = overlayDir + "ap.mp4";
 		if (IO::File::exists(apMp4)) apVideoPath = apMp4;
+
+		startGrad    = loadOne(overlayDir + "start_grad.png");
+		diffBgEasy   = loadOne(overlayDir + "easy_bg.png");
+		diffBgNormal = loadOne(overlayDir + "normal_bg.png");
+		diffBgHard   = loadOne(overlayDir + "hard_bg.png");
+		diffBgExpert = loadOne(overlayDir + "expert_bg.png");
+		diffBgMaster = loadOne(overlayDir + "master_bg.png");
+		diffBgAppend = loadOne(overlayDir + "append_bg.png");
+	}
+
+	int OverlayAssets::difficultyBg(const std::string& key) const
+	{
+		if (key == "easy")   return diffBgEasy;
+		if (key == "normal") return diffBgNormal;
+		if (key == "hard")   return diffBgHard;
+		if (key == "expert") return diffBgExpert;
+		if (key == "append") return diffBgAppend;
+		return diffBgMaster;
 	}
 }

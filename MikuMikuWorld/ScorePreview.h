@@ -97,5 +97,9 @@ namespace MikuMikuWorld
 		inline bool isFullWindow() const { return fullWindow; };
 
 		void loadNoteEffects(Effect::EffectView& effectView);
+
+		// Offline-render hook: configure the pre-chart intro animation. Must be
+		// called before renderToFramebuffer so overlay.init() has already run.
+		void configureIntro(float offsetSeconds, const OverlayIntroData& data);
 	};
 }

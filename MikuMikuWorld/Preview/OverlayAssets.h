@@ -67,12 +67,23 @@ namespace MikuMikuWorld
 		int lifeDigit[10]{ NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX };
 		int lifeDigitFill[10]{ NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX, NO_TEX };
 
+		// Intro (pre-chart) assets
+		int startGrad{ NO_TEX };
+		int diffBgEasy{ NO_TEX };
+		int diffBgNormal{ NO_TEX };
+		int diffBgHard{ NO_TEX };
+		int diffBgExpert{ NO_TEX };
+		int diffBgMaster{ NO_TEX };
+		int diffBgAppend{ NO_TEX };
+
 		// All Perfect video path
 		std::string apVideoPath;
 
 		bool hasCore() const { return bar != NO_TEX && barBg != NO_TEX && comboDigit[0] != NO_TEX && judgePerfect != NO_TEX; }
 		bool hasLife() const { return lifeBg != NO_TEX && lifeNormal != NO_TEX && lifeDigitFill[0] != NO_TEX; }
 		bool hasAp() const { return !apVideoPath.empty(); }
+		bool hasIntro() const { return startGrad != NO_TEX && diffBgMaster != NO_TEX; }
+		int difficultyBg(const std::string& key) const;
 
 		void load(const std::string& overlayDir);
 

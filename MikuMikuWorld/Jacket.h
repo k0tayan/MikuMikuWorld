@@ -20,5 +20,6 @@ namespace MikuMikuWorld
 
 		const std::string& getFilename() const;
 		int getTexID() const;
+		const Texture* getTexture() const { return texture.get(); }
 	};
 }

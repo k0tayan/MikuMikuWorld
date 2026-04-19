@@ -302,6 +302,11 @@ namespace MikuMikuWorld
 		drawList->AddImage((ImTextureID)(size_t)previewBuffer.getTexture(), position, position + size, {0, 1}, {1, 0});
 	}
 
+	void ScorePreviewWindow::configureIntro(float offsetSeconds, const OverlayIntroData& data)
+	{
+		overlay.beginIntro(offsetSeconds, data);
+	}
+
 	void ScorePreviewWindow::renderToFramebuffer(ScoreContext& context, Renderer* renderer,
 	                                             float viewportWidth, float viewportHeight,
 	                                             float currentTime, bool isPlaying)
@@ -440,12 +445,14 @@ namespace MikuMikuWorld
 
 			const auto overlayProjection = Camera::getOffCenterOrthographicProjection(0.f, viewportWidth, viewportHeight, 0.f);
 
-			// Pass 1: RGBA assets (jacket, score bar parts, combo digits, judgement) with standard alpha blending
+			// Pass 1: RGBA assets (intro card, score bar, combo digits, judgement) with standard alpha blending
 			shader->use();
 			shader->setMatrix4("projection", overlayProjection);
 			renderer->beginBatch();
-			overlay.drawJacketPass(renderer, viewportWidth, viewportHeight, context.workingData.jacket);
-			overlay.drawAssetPass(renderer, viewportWidth, viewportHeight);
+			overlay.drawIntroPass(renderer, viewportWidth, viewportHeight,
+			                      context.workingData.jacket, currentTime);
+			if (!overlay.isIntroShowing(currentTime))
+				overlay.drawAssetPass(renderer, viewportWidth, viewportHeight);
 			renderer->endBatch();
 
 			// Pass 2: AP video — rendered additively since the source has a black background.
@@ -453,13 +460,13 @@ namespace MikuMikuWorld
 			overlay.drawAdditivePass(renderer, viewportWidth, viewportHeight);
 			renderer->endBatchWithBlending(GL_ONE, GL_ONE, GL_ONE, GL_ONE);
 
-			// Pass 3: R8 font atlas (title, artist)
+			// Pass 3: R8 font atlas (intro card text)
 			if (textShader)
 			{
 				textShader->use();
 				textShader->setMatrix4("projection", overlayProjection);
 				renderer->beginBatch();
-				overlay.drawTextPass(renderer, viewportWidth, viewportHeight, context);
+				overlay.drawTextPass(renderer, viewportWidth, viewportHeight, context, currentTime);
 				renderer->endBatch();
 			}
 		}
