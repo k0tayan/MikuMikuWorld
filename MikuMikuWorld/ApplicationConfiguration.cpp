@@ -95,6 +95,7 @@ namespace MikuMikuWorld
 			pvBackgroundBrightness = jsonIO::tryGetValue<float>(previewObj, "background_brightness", 1.f);
 			pvEffectsProfile = jsonIO::tryGetValue<int>(previewObj, "effects_profile", 0);
 			pvDrawToolbar = jsonIO::tryGetValue<bool>(previewObj, "draw_toolbar", true);
+			pvOverlayEnabled = jsonIO::tryGetValue<bool>(previewObj, "overlay_enabled", true);
 		}
 
 		if (jsonIO::keyExists(config, "theme"))
@@ -204,7 +205,8 @@ namespace MikuMikuWorld
 			{"stage_opacity", pvStageOpacity},
 			{"background_brightness", pvBackgroundBrightness},
 			{"effects_profile", pvEffectsProfile},
-			{"draw_toolbar", pvDrawToolbar}
+			{"draw_toolbar", pvDrawToolbar},
+			{"overlay_enabled", pvOverlayEnabled}
 		};
 
 		config["theme"] = {
@@ -303,6 +305,7 @@ namespace MikuMikuWorld
 		pvEffectsProfile = 0;
 		notesSkin = 0;
 		pvDrawToolbar = true;
+		pvOverlayEnabled = true;
 
 		autoSaveEnabled = true;
 		autoSaveInterval = 5;

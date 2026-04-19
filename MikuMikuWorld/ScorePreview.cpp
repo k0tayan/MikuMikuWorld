@@ -302,6 +302,11 @@ namespace MikuMikuWorld
 		drawList->AddImage((ImTextureID)(size_t)previewBuffer.getTexture(), position, position + size, {0, 1}, {1, 0});
 	}
 
+	void ScorePreviewWindow::configureIntro(float offsetSeconds, const OverlayIntroData& data)
+	{
+		overlay.beginIntro(offsetSeconds, data);
+	}
+
 	void ScorePreviewWindow::renderToFramebuffer(ScoreContext& context, Renderer* renderer,
 	                                             float viewportWidth, float viewportHeight,
 	                                             float currentTime, bool isPlaying)
@@ -311,6 +316,22 @@ namespace MikuMikuWorld
 
 		if (context.scorePreviewDrawData.noteSpeed != config.pvNoteSpeed)
 			context.scorePreviewDrawData.calculateDrawData(context.score);
+
+		if (!overlayInitAttempted)
+		{
+			overlayInitAttempted = true;
+			overlay.init(Application::getAppDir() + "res/fonts/NotoSansCJK-Regular.ttc",
+			             Application::getAppDir() + "res/overlay/",
+			             Application::getUserDataDir() + "overlay_cache/ap");
+		}
+		// Cheap structural signature: note count usually changes when the score is edited.
+		int overlayRevision = (int)context.score.notes.size();
+		if (overlayRevision != lastOverlayScoreRevision)
+		{
+			lastOverlayScoreRevision = overlayRevision;
+			if (overlay.isInitialized())
+				overlay.onScoreChanged(context.score);
+		}
 
 		if (config.drawBackground && background.shouldUpdate(context.workingData.jacket))
 			background.update(renderer, context.workingData.jacket);
@@ -325,6 +346,7 @@ namespace MikuMikuWorld
 		else if (playbackState.wasLastFramePlaying)
 		{
 			context.scorePreviewDrawData.effectView.reset();
+			overlay.reset();
 		}
 
 		static int shaderId = ResourceManager::getShader("basic2d");
@@ -362,6 +384,8 @@ namespace MikuMikuWorld
 		previewBuffer.bind();
 		previewBuffer.clear();
 
+		const bool introShowing = overlay.isIntroShowing(currentTime);
+
 		renderer->beginBatch();
 		if (config.drawBackground)
 		{
@@ -376,8 +400,11 @@ namespace MikuMikuWorld
 		shader->use();
 		shader->setMatrix4("projection", viewProjection);
 		renderer->beginBatch();
-		drawLines(context, renderer);
-		drawHoldCurves(context, renderer);
+		if (!introShowing)
+		{
+			drawLines(context, renderer);
+			drawHoldCurves(context, renderer);
+		}
 		if (config.pvStageCover != 0) {
 			drawStageCoverMask(renderer);
 			renderer->endBatchWithDepthTest(GL_LEQUAL); // using depth test to cull the notes drawn
@@ -389,15 +416,19 @@ namespace MikuMikuWorld
 		pteShader->setMatrix4("projection", pProjection);
 		pteShader->setMatrix4("view", pView);
 		renderer->beginBatch();
-		context.scorePreviewDrawData.effectView.drawUnderNoteEffects(renderer, currentTime);
+		if (!introShowing)
+			context.scorePreviewDrawData.effectView.drawUnderNoteEffects(renderer, currentTime);
 		renderer->endBatchWithBlending(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 		shader->use();
 		shader->setMatrix4("projection", viewProjection);
 		renderer->beginBatch();
 
-		drawHoldTicks(context, renderer);
-		drawNotes(context, renderer);
+		if (!introShowing)
+		{
+			drawHoldTicks(context, renderer);
+			drawNotes(context, renderer);
+		}
 		if (config.pvStageCover != 0) {
 			drawStageCoverMask(renderer);
 			drawStageCover(renderer);
@@ -411,8 +442,44 @@ namespace MikuMikuWorld
 		pteShader->setMatrix4("projection", pProjection);
 		pteShader->setMatrix4("view", pView);
 		renderer->beginBatch();
-		context.scorePreviewDrawData.effectView.drawEffects(renderer, currentTime);
+		if (!introShowing)
+			context.scorePreviewDrawData.effectView.drawEffects(renderer, currentTime);
 		renderer->endBatchWithBlending(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+		if (config.pvOverlayEnabled && overlay.isInitialized())
+		{
+			overlay.update(context.score, currentTime, isPlaying);
+
+			static int textShaderId = ResourceManager::getShader("text");
+			Shader* textShader = textShaderId >= 0 ? ResourceManager::shaders[textShaderId] : nullptr;
+
+			const auto overlayProjection = Camera::getOffCenterOrthographicProjection(0.f, viewportWidth, viewportHeight, 0.f);
+
+			// Pass 1: RGBA assets (intro card, score bar, combo digits, judgement) with standard alpha blending
+			shader->use();
+			shader->setMatrix4("projection", overlayProjection);
+			renderer->beginBatch();
+			overlay.drawIntroPass(renderer, viewportWidth, viewportHeight,
+			                      context.workingData.jacket, currentTime);
+			if (!overlay.isIntroShowing(currentTime))
+				overlay.drawAssetPass(renderer, viewportWidth, viewportHeight, currentTime);
+			renderer->endBatch();
+
+			// Pass 2: AP video — rendered additively since the source has a black background.
+			renderer->beginBatch();
+			overlay.drawAdditivePass(renderer, viewportWidth, viewportHeight);
+			renderer->endBatchWithBlending(GL_ONE, GL_ONE, GL_ONE, GL_ONE);
+
+			// Pass 3: R8 font atlas (intro card text)
+			if (textShader)
+			{
+				textShader->use();
+				textShader->setMatrix4("projection", overlayProjection);
+				renderer->beginBatch();
+				overlay.drawTextPass(renderer, viewportWidth, viewportHeight, context, currentTime);
+				renderer->endBatch();
+			}
+		}
 
 		previewBuffer.unblind();
 	}

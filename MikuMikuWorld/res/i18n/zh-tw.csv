@@ -100,6 +100,7 @@ vsync_enable, 啟用垂直同步
 notes_se, 音符音效
 visuals, 視覺效果
 preview_draw_toolbar, 繪製預覽工具列
+preview_overlay, 分數/連擊覆蓋顯示
 notes_speed, 音符速度
 mirror_score, 鏡像譜面
 flicks_animation, 滑動鍵動畫

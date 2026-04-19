@@ -30,9 +30,11 @@ MikuMikuWorld.app/Contents/MacOS/MikuMikuWorld --render \
   --fps 60 --width 1920 --height 1080
 ```
 
-対応譜面形式は `.mmws` / `.sus` / `.json` / `.json.gz`（Sonolus レベルデータ）。
+対応譜面形式は `.mmws` / `.sus` / `.usc` / `.json` / `.json.gz`（Sonolus レベルデータ）。
 
 ノート・ホールド・ヒットエフェクト・背景に加え、タップ／フリック／トレース／tick／ホールド本体ループの SE も出力動画に含まれます。SE は `res/sound/0N/` から内部で合成し、ffmpeg の `amix` で BGM と混合します。
+
+`res/overlay/` にプロセカ v3 系のアセットを配置すると、スコア／コンボ／ライフ／判定のオーバーレイ HUD が重畳されます。不要な場合は `--no-overlay`。
 
 主なオプション（すべて任意）：
 
@@ -50,8 +52,41 @@ MikuMikuWorld.app/Contents/MacOS/MikuMikuWorld --render \
 | `--se-profile 0\|1` | SE プロファイルの選択 |
 | `--se-volume X` | SE 音量倍率（デフォルト 1.0） |
 | `--no-se` | SE を無効化 |
+| `--no-overlay` | スコア／コンボオーバーレイを無効化 |
 | `--tail SEC` | 譜面終端の延長秒数（デフォルト 2.0） |
 | `--ffmpeg path` | ffmpeg バイナリパスの指定 |
+| `--dry-run` | 譜面の読み込み検証のみ行い、動画は書き出さない |
+
+### 曲開始前のイントロ
+譜面本編の前に 9 秒の pjsekai 風イントロ（背景 + ジャケットカード + タイトル／説明文 + start_grad スライドイン）を付与します。BGM・ノーツ・SE・AP 演出はすべて 9 秒後ろにシフトされます。
+
+```bash
+MikuMikuWorld.app/Contents/MacOS/MikuMikuWorld --render \
+  --score chart.usc --audio bgm.mp3 --out out.mp4 \
+  --intro \
+  --intro-difficulty master \
+  --intro-title "曲タイトル" \
+  --intro-jacket jacket.png \
+  --intro-lyricist "作詞者" \
+  --intro-composer "作曲者" \
+  --intro-arranger "編曲者" \
+  --intro-vocal "ボーカル" \
+  --intro-chart-author "譜面作者"
+```
+
+| フラグ | 意味 |
+| --- | --- |
+| `--intro` | 9 秒のイントロを有効化 |
+| `--intro-difficulty KEY` | `easy` / `normal` / `hard` / `expert` / `master` / `append` |
+| `--intro-extra TEXT` | タイトル上の補助ラベル（例: `Lv.30`） |
+| `--intro-title TEXT` | タイトル（未指定時は譜面のタイトル） |
+| `--intro-jacket PATH` | イントロカードに表示するジャケット画像 |
+| `--intro-lyricist TEXT` | 作詞 |
+| `--intro-composer TEXT` | 作曲 |
+| `--intro-arranger TEXT` | 編曲 |
+| `--intro-vocal TEXT` | ボーカル |
+| `--intro-chart-author TEXT` | 譜面作者（未指定時は譜面の author） |
+| `--intro-lang jp\|en` | 説明文の言語（デフォルト `jp`） |
 
 全オプションは `--render --help` で確認できます。
 

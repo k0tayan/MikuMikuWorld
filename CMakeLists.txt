@@ -98,6 +98,10 @@ set(MMW_SOURCES
     ${MMW_SRC_DIR}/ScoreEditorTimeline.cpp
     ${MMW_SRC_DIR}/ScoreEditorWindows.cpp
     ${MMW_SRC_DIR}/ScorePreview.cpp
+    ${MMW_SRC_DIR}/Preview/Overlay.cpp
+    ${MMW_SRC_DIR}/Preview/OverlayAssets.cpp
+    ${MMW_SRC_DIR}/Preview/OverlayText.cpp
+    ${MMW_SRC_DIR}/Preview/VideoPlayer.cpp
     ${MMW_SRC_DIR}/ScoreSerializeWindow.cpp
     ${MMW_SRC_DIR}/ScoreSerializer.cpp
     ${MMW_SRC_DIR}/ScoreStats.cpp
@@ -160,6 +164,7 @@ target_include_directories(MikuMikuWorld PRIVATE
     ${DEPS_DIR}/DirectXMath-master/Inc
     ${DEPS_DIR}/glad/include
     ${DEPS_DIR}/stb_image
+    ${DEPS_DIR}/stb_truetype
     ${DEPS_DIR}/stb_vorbis
     ${DEPS_DIR}/miniaudio
     ${DEPS_DIR}/json

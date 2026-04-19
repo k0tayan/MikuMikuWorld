@@ -47,7 +47,8 @@ namespace MikuMikuWorld
 			int fps = 60;
 			int width = 1920;
 			int height = 1080;
-			float tailSeconds = 2.0f;
+			// 3s pause + ~10s AP.mp4 + 2s cushion so the AP takeover finishes.
+			float tailSeconds = 15.0f;
 
 			bool hasNoteSpeed = false;  float noteSpeed = 0;
 			bool hasStageCover = false; float stageCover = 0;
@@ -65,7 +66,23 @@ namespace MikuMikuWorld
 			bool hasSeVolume = false; float seVolume = 1.0f;
 			bool disableSE = false;
 			bool dryRun = false;
+			bool hasOverlay = false; bool overlayEnabled = true;
+
+			// Intro (pre-chart) animation
+			bool intro = false;
+			std::string introDifficulty = "master";
+			std::string introExtra;
+			std::string introTitle;
+			std::string introJacket;
+			std::string introLyricist;
+			std::string introComposer;
+			std::string introArranger;
+			std::string introVocal;
+			std::string introChartAuthor;
+			std::string introLang = "jp";
 		};
+
+		constexpr float INTRO_OFFSET_SECONDS = 9.0f;
 
 		void printUsage()
 		{
@@ -91,6 +108,19 @@ namespace MikuMikuWorld
 				"  [--se-profile <N>]   SE profile (0 or 1, default: app_config)\n"
 				"  [--se-volume <X>]    SE volume multiplier (default 1.0)\n"
 				"  [--no-se]            Disable note sound effects\n"
+				"  [--no-overlay]       Disable in-frame score/combo overlay\n"
+				"  [--overlay]          Force-enable the overlay (default)\n"
+				"  [--intro]            Prepend a 9s pjsekai-style intro (chart/music shift by 9s)\n"
+				"  [--intro-difficulty <easy|normal|hard|expert|master|append>]\n"
+				"  [--intro-extra <text>]       Extra/level text (e.g. Lv.30)\n"
+				"  [--intro-title <text>]       Override title text (defaults to score title)\n"
+				"  [--intro-jacket <path>]      Jacket image shown in the intro card\n"
+				"  [--intro-lyricist <text>]\n"
+				"  [--intro-composer <text>]\n"
+				"  [--intro-arranger <text>]\n"
+				"  [--intro-vocal <text>]\n"
+				"  [--intro-chart-author <text>] (defaults to score author)\n"
+				"  [--intro-lang <jp|en>]       Description language (default jp)\n"
 				"  [--dry-run]          Load & verify the score, then exit (no rendering)\n");
 		}
 
@@ -129,6 +159,19 @@ namespace MikuMikuWorld
 				else if (a == "--se-profile") { if (!needs(i, "--se-profile")) return false; opt.hasSeProfile = true; opt.seProfile = std::atoi(argv[++i]); }
 				else if (a == "--se-volume") { if (!needs(i, "--se-volume")) return false; opt.hasSeVolume = true; opt.seVolume = std::atof(argv[++i]); }
 				else if (a == "--no-se") { opt.disableSE = true; }
+				else if (a == "--no-overlay") { opt.hasOverlay = true; opt.overlayEnabled = false; }
+				else if (a == "--overlay") { opt.hasOverlay = true; opt.overlayEnabled = true; }
+				else if (a == "--intro") { opt.intro = true; }
+				else if (a == "--intro-difficulty") { if (!needs(i, "--intro-difficulty")) return false; opt.introDifficulty = argv[++i]; }
+				else if (a == "--intro-extra") { if (!needs(i, "--intro-extra")) return false; opt.introExtra = argv[++i]; }
+				else if (a == "--intro-title") { if (!needs(i, "--intro-title")) return false; opt.introTitle = argv[++i]; }
+				else if (a == "--intro-jacket") { if (!needs(i, "--intro-jacket")) return false; opt.introJacket = argv[++i]; }
+				else if (a == "--intro-lyricist") { if (!needs(i, "--intro-lyricist")) return false; opt.introLyricist = argv[++i]; }
+				else if (a == "--intro-composer") { if (!needs(i, "--intro-composer")) return false; opt.introComposer = argv[++i]; }
+				else if (a == "--intro-arranger") { if (!needs(i, "--intro-arranger")) return false; opt.introArranger = argv[++i]; }
+				else if (a == "--intro-vocal") { if (!needs(i, "--intro-vocal")) return false; opt.introVocal = argv[++i]; }
+				else if (a == "--intro-chart-author") { if (!needs(i, "--intro-chart-author")) return false; opt.introChartAuthor = argv[++i]; }
+				else if (a == "--intro-lang") { if (!needs(i, "--intro-lang")) return false; opt.introLang = argv[++i]; }
 				else if (a == "--dry-run") { opt.dryRun = true; }
 				else {
 					std::fprintf(stderr, "Unknown argument: %s\n", a.c_str());
@@ -429,7 +472,8 @@ namespace MikuMikuWorld
 		}
 
 		bool generateSESoundtrack(const ScoreContext& context,
-			float totalSeconds, int seProfileIndex, float userSeVolume,
+			float totalSeconds, float eventOffsetSeconds,
+			int seProfileIndex, float userSeVolume,
 			const std::string& resourceDir, const std::string& outWavPath)
 		{
 			if (seProfileIndex < 0) seProfileIndex = 0;
@@ -464,20 +508,23 @@ namespace MikuMikuWorld
 
 			for (const auto& ev : oneshots)
 			{
-				if (ev.time < 0 || ev.time > totalSeconds) continue;
+				float t = ev.time + eventOffsetSeconds;
+				if (t < 0 || t > totalSeconds) continue;
 				auto it = clips.find(ev.name);
 				if (it == clips.end()) continue;
-				size_t writeFrame = static_cast<size_t>(ev.time * SE_MIX_SAMPLE_RATE);
+				size_t writeFrame = static_cast<size_t>(t * SE_MIX_SAMPLE_RATE);
 				mixClip(mix, totalFrames, it->second, writeFrame, 0, it->second.frames);
 			}
 			for (const auto& h : holds)
 			{
-				if (h.startTime < 0 || h.startTime > totalSeconds) continue;
+				float startT = h.startTime + eventOffsetSeconds;
+				float endT   = h.endTime   + eventOffsetSeconds;
+				if (startT < 0 || startT > totalSeconds) continue;
 				auto it = clips.find(h.name);
 				if (it == clips.end()) continue;
-				float durSec = std::min(h.endTime, totalSeconds) - h.startTime;
+				float durSec = std::min(endT, totalSeconds) - startT;
 				if (durSec <= 0) continue;
-				size_t writeFrame = static_cast<size_t>(h.startTime * SE_MIX_SAMPLE_RATE);
+				size_t writeFrame = static_cast<size_t>(startT * SE_MIX_SAMPLE_RATE);
 				size_t durFrames = static_cast<size_t>(durSec * SE_MIX_SAMPLE_RATE);
 				mixHoldLoop(mix, totalFrames, it->second, writeFrame, durFrames);
 			}
@@ -489,10 +536,12 @@ namespace MikuMikuWorld
 		}
 
 		FILE* spawnFfmpeg(const RenderOptions& opt, float audioOffsetSeconds,
-			const std::string& sePath)
+			const std::string& sePath,
+			const std::string& apAudioPath, float apStartSeconds)
 		{
 			const bool haveBgm = !opt.audioPath.empty();
 			const bool haveSe = !sePath.empty();
+			const bool haveAp = !apAudioPath.empty();
 
 			std::string cmd = shellQuote(opt.ffmpegPath);
 			cmd += " -y";
@@ -503,17 +552,15 @@ namespace MikuMikuWorld
 
 			int bgmIndex = -1;
 			int seIndex = -1;
+			int apIndex = -1;
 			int nextIndex = 1;
 
 			if (haveBgm)
 			{
-				if (audioOffsetSeconds > 0.f)
-				{
-					char buf[64];
-					std::snprintf(buf, sizeof(buf), " -itsoffset %.6f", audioOffsetSeconds);
-					cmd += buf;
-				}
-				else if (audioOffsetSeconds < 0.f)
+				// Negative offsets seek into the input; positive offsets are applied
+				// via adelay inside the filter graph (itsoffset is unreliable when
+				// fed through amix).
+				if (audioOffsetSeconds < 0.f)
 				{
 					char buf[64];
 					std::snprintf(buf, sizeof(buf), " -ss %.6f", -audioOffsetSeconds);
@@ -527,28 +574,77 @@ namespace MikuMikuWorld
 				cmd += " -i " + shellQuote(sePath);
 				seIndex = nextIndex++;
 			}
+			if (haveAp)
+			{
+				cmd += " -i " + shellQuote(apAudioPath);
+				apIndex = nextIndex++;
+			}
 
 			cmd += " -vf vflip";
 			cmd += " -c:v libx264 -pix_fmt yuv420p -preset medium -crf 18";
 
-			if (haveBgm && haveSe)
+			// Build audio graph. Both BGM and AP use adelay to land at the right
+			// moment (itsoffset is unreliable when feeding through amix).
+			std::vector<std::string> amixInputs;
+			std::string filter;
+			if (haveBgm)
+			{
+				if (audioOffsetSeconds > 0.f)
+				{
+					char buf[128];
+					const int delayMs = (int)(audioOffsetSeconds * 1000.f);
+					std::snprintf(buf, sizeof(buf),
+						"[%d:a]adelay=%d|%d[bgm];",
+						bgmIndex, delayMs, delayMs);
+					filter += buf;
+					amixInputs.push_back("bgm");
+				}
+				else
+				{
+					amixInputs.push_back(std::to_string(bgmIndex) + ":a");
+				}
+			}
+			if (haveSe)
+			{
+				amixInputs.push_back(std::to_string(seIndex) + ":a");
+			}
+			if (haveAp)
 			{
 				char buf[128];
+				const int delayMs = (int)std::max(0.f, apStartSeconds * 1000.f);
 				std::snprintf(buf, sizeof(buf),
-					" -filter_complex [%d:a][%d:a]amix=inputs=2:duration=longest:normalize=0[aout]",
-					bgmIndex, seIndex);
-				cmd += buf;
+					"[%d:a]adelay=%d|%d,apad=pad_dur=0.1[ap];",
+					apIndex, delayMs, delayMs);
+				filter += buf;
+				amixInputs.push_back("ap");
+			}
+
+			if (amixInputs.size() >= 2)
+			{
+				filter += "";
+				for (const auto& lbl : amixInputs)
+				{
+					filter += "[" + lbl + "]";
+				}
+				filter += "amix=inputs=" + std::to_string(amixInputs.size())
+				       + ":duration=longest:normalize=0[aout]";
+				cmd += " -filter_complex " + shellQuote(filter);
 				cmd += " -map 0:v -map [aout]";
 				cmd += " -c:a aac -b:a 192k";
 			}
-			else if (haveBgm)
+			else if (amixInputs.size() == 1)
 			{
-				cmd += " -map 0:v -map " + std::to_string(bgmIndex) + ":a";
-				cmd += " -c:a aac -b:a 192k";
-			}
-			else if (haveSe)
-			{
-				cmd += " -map 0:v -map " + std::to_string(seIndex) + ":a";
+				if (!filter.empty())
+				{
+					// Single AP input still needs the delay applied.
+					filter += "[" + amixInputs[0] + "]anull[aout]";
+					cmd += " -filter_complex " + shellQuote(filter);
+					cmd += " -map 0:v -map [aout]";
+				}
+				else
+				{
+					cmd += " -map 0:v -map " + amixInputs[0];
+				}
 				cmd += " -c:a aac -b:a 192k";
 			}
 
@@ -648,6 +744,7 @@ namespace MikuMikuWorld
 		if (opt.hasNotesSkin)       config.notesSkin = opt.notesSkin;
 		if (opt.hasEffectsProfile)  config.pvEffectsProfile = opt.effectsProfile;
 		if (opt.hasMirror)          config.pvMirrorScore = opt.mirror;
+		if (opt.hasOverlay)         config.pvOverlayEnabled = opt.overlayEnabled;
 
 		Application::loadResources();
 
@@ -691,20 +788,47 @@ namespace MikuMikuWorld
 		ScorePreviewWindow preview;
 		preview.loadNoteEffects(context.scorePreviewDrawData.effectView);
 
+		// Intro pre-roll pushes music/notes/SE/AP by INTRO_OFFSET_SECONDS seconds.
+		const float introOffset = opt.intro ? INTRO_OFFSET_SECONDS : 0.f;
+		if (opt.intro)
+		{
+			if (!opt.introJacket.empty())
+				context.workingData.jacket.load(opt.introJacket);
+
+			OverlayIntroData introData;
+			introData.difficulty  = opt.introDifficulty;
+			introData.extra       = opt.introExtra;
+			introData.title       = opt.introTitle.empty()
+				? context.workingData.title : opt.introTitle;
+			introData.lyricist    = opt.introLyricist;
+			introData.composer    = opt.introComposer;
+			introData.arranger    = opt.introArranger;
+			introData.vocal       = opt.introVocal;
+			introData.chartAuthor = opt.introChartAuthor.empty()
+				? context.workingData.designer : opt.introChartAuthor;
+			introData.useEnglish  = (opt.introLang == "en");
+			preview.configureIntro(introOffset, introData);
+			std::fprintf(stderr, "[render] intro enabled (difficulty=%s, lang=%s, +%.1fs)\n",
+				introData.difficulty.c_str(), opt.introLang.c_str(), introOffset);
+		}
+
 		// Duration
 		const int maxTick = scoreMaxTick(context.score);
 		const float scoreDuration = accumulateDuration(maxTick, TICKS_PER_BEAT, context.score.tempoChanges);
-		const float totalSeconds = scoreDuration + opt.tailSeconds;
+		const float totalSeconds = scoreDuration + opt.tailSeconds + introOffset;
 		const int totalFrames = static_cast<int>(std::ceil(totalSeconds * opt.fps));
 
 		std::fprintf(stderr, "[render] score duration %.3fs, total %.3fs (%d frames @ %d fps)\n",
 			scoreDuration, totalSeconds, totalFrames, opt.fps);
 
-		// Audio offset: score metadata value unless overridden.
+		// Audio offset: score metadata value unless overridden. Intro pushes audio
+		// by an additional introOffset seconds so the song lines up with frame 540.
 		float audioOffset = context.workingData.musicOffset;
 		if (opt.hasAudioOffset) audioOffset = opt.audioOffset;
+		audioOffset += introOffset;
 
-		// Sound effects mixdown -> intermediate WAV
+		// Sound effects mixdown -> intermediate WAV. Events collected relative to
+		// the chart are shifted into video time by introOffset.
 		std::string sePath;
 		if (!opt.disableSE)
 		{
@@ -713,15 +837,21 @@ namespace MikuMikuWorld
 			sePath = opt.outputPath + ".se.wav";
 			std::fprintf(stderr, "[se] generating SE track (profile %d, vol %.2f) -> %s\n",
 				seProfile, seVol, sePath.c_str());
-			if (!generateSESoundtrack(context, totalSeconds, seProfile, seVol, resourceDir, sePath))
+			if (!generateSESoundtrack(context, totalSeconds, introOffset, seProfile, seVol, resourceDir, sePath))
 			{
 				std::fprintf(stderr, "[se] failed; continuing without SE\n");
 				sePath.clear();
 			}
 		}
 
+		// Keep in sync with Overlay::AP_TRIGGER_DELAY.
+		constexpr float AP_TRIGGER_DELAY = 2.0f;
+		std::string apAudioPath = resourceDir + "res/overlay/ap.mp4";
+		if (!IO::File::exists(apAudioPath)) apAudioPath.clear();
+		const float apStartSec = apAudioPath.empty() ? 0.f : scoreDuration + AP_TRIGGER_DELAY + introOffset;
+
 		// ffmpeg
-		FILE* pipe = spawnFfmpeg(opt, audioOffset, sePath);
+		FILE* pipe = spawnFfmpeg(opt, audioOffset, sePath, apAudioPath, apStartSec);
 		if (!pipe)
 		{
 			std::fprintf(stderr, "Failed to spawn ffmpeg\n");
@@ -736,13 +866,15 @@ namespace MikuMikuWorld
 		int lastReported = -1;
 		for (int frame = 0; frame < totalFrames; ++frame)
 		{
-			float t = static_cast<float>(frame) / static_cast<float>(opt.fps);
-			context.currentTick = t > 0.f
-				? accumulateTicks(t, TICKS_PER_BEAT, context.score.tempoChanges)
-				: 0;
+			float videoTime = static_cast<float>(frame) / static_cast<float>(opt.fps);
+			float chartTime = videoTime - introOffset;
+			// accumulateTicks returns a negative tick for negative chartTime,
+			// which the rendering pipeline uses to place notes above the lane
+			// during the intro pre-roll.
+			context.currentTick = accumulateTicks(chartTime, TICKS_PER_BEAT, context.score.tempoChanges);
 
 			preview.renderToFramebuffer(context, renderer.get(),
-				static_cast<float>(opt.width), static_cast<float>(opt.height), t, true);
+				static_cast<float>(opt.width), static_cast<float>(opt.height), chartTime, true);
 
 			Framebuffer& fb = preview.getPreviewBuffer();
 			fb.bind();

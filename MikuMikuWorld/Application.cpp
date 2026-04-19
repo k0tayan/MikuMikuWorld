@@ -298,9 +298,15 @@ namespace MikuMikuWorld
 
 	void Application::loadResources()
 	{
+		// Reserve capacity up front so subsequent loads (note skins, effects,
+		// overlay pack) never reallocate the vector. Stale Texture* pointers
+		// kept by EffectView and others rely on this invariant.
+		ResourceManager::textures.reserve(256);
+
 		ResourceManager::loadShader(appDir + "res/shaders/basic2d");
 		ResourceManager::loadShader(appDir + "res/shaders/masking");
 		ResourceManager::loadShader(appDir + "res/shaders/particles");
+		ResourceManager::loadShader(appDir + "res/shaders/text");
 
 		// TODO: Do not set the note skin texture indexes manually!
 		const std::string notes01TexDir = appDir + "res/notes/01/";
