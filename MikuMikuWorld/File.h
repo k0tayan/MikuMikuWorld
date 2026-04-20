@@ -112,6 +112,7 @@ namespace IO
 	extern FileDialogFilter uscFilter;
 	extern FileDialogFilter imageFilter;
 	extern FileDialogFilter audioFilter;
+	extern FileDialogFilter fontFilter;
 	extern FileDialogFilter presetFilter;
 	extern FileDialogFilter allFilter;
 }

@@ -1078,6 +1078,21 @@ namespace MikuMikuWorld
 						UI::addCheckboxProperty(getString("mirror_score"), config.pvMirrorScore);
 						UI::addCheckboxProperty(getString("preview_draw_toolbar"), config.pvDrawToolbar);
 						UI::addCheckboxProperty(getString("preview_overlay"), config.pvOverlayEnabled);
+
+						std::string introFontFile = config.pvIntroFontPath;
+						int fontPickResult = UI::addFileProperty(getString("intro_font"), introFontFile);
+						if (fontPickResult == 1)
+						{
+							config.pvIntroFontPath = introFontFile;
+						}
+						else if (fontPickResult == 2)
+						{
+							IO::FileDialog fontDialog{};
+							fontDialog.title = "Open Font File";
+							fontDialog.filters = { IO::fontFilter, IO::allFilter };
+							if (fontDialog.openFile() == IO::FileDialogResult::OK)
+								config.pvIntroFontPath = fontDialog.outputFilename;
+						}
 						UI::endPropertyColumns();
 					}
 

@@ -109,6 +109,7 @@ namespace MikuMikuWorld
 		{"preview_overlay", "Score / Combo Overlay"},
 		{"intro_animation", "Intro Animation"},
 		{"intro_enabled", "Enable Intro Animation"},
+		{"intro_font", "Intro Animation Font"},
 		{"notes_speed", "Notes Speed"},
 		{"mirror_score", "Mirrored Lanes"},
 		{"flicks_animation", "Animate Flick Arrow"},

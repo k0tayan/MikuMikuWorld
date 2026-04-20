@@ -49,16 +49,31 @@ namespace MikuMikuWorld
 	OverlayText::OverlayText() = default;
 	OverlayText::~OverlayText()
 	{
+		release();
+	}
+
+	void OverlayText::release()
+	{
 		if (glTexture)
 		{
 			glDeleteTextures(1, &glTexture);
 			glTexture = 0;
 		}
+		glyphs.clear();
+		fontBuffer.clear();
+		fontBuffer.shrink_to_fit();
+		font.reset();
+		cursorX = 0;
+		cursorY = 0;
+		shelfHeight = 0;
+		ascent = descent = lineGap = 0.f;
+		scaleFactor = 0.f;
+		initialized = false;
 	}
 
 	bool OverlayText::init(const std::string& fontPath, float pixelHeightArg)
 	{
-		if (initialized) return true;
+		if (initialized) release();
 
 		if (!IO::File::exists(fontPath))
 		{

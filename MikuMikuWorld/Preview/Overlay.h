@@ -37,6 +37,8 @@ namespace MikuMikuWorld
 		bool init(const std::string& fontPath,
 		          const std::string& overlayDir,
 		          const std::string& videoCacheDir);
+		// Swap the intro/overlay font without recreating the rest of the overlay.
+		bool reloadFont(const std::string& fontPath);
 		bool isInitialized() const { return text.isInitialized(); }
 		bool hasAssetPack() const { return assets.hasCore(); }
 
@@ -57,6 +59,8 @@ namespace MikuMikuWorld
 		void drawAdditivePass(Renderer* renderer, float vpWidth, float vpHeight);
 		void drawTextPass(Renderer* renderer, float vpWidth, float vpHeight,
 		                  const ScoreContext& context, float chartTime);
+		void drawIntroJacketOverlayPass(Renderer* renderer, float vpWidth, float vpHeight,
+		                                const Jacket& jacket, float chartTime);
 
 		bool isApPlaying() const { return allPerfectTriggered && apVideo.isOpen(); }
 
@@ -102,12 +106,14 @@ namespace MikuMikuWorld
 
 		void buildTimeline(const Score& score);
 
+		// HUD は 16:9 レイアウトを維持するため uniform scale + 中央オフセットで描画する
+		// (sx == sy が渡される; ox, oy は letterbox/pillarbox の余白)。
 		// Asset-based draw helpers
-		void drawScoreBarAssets(Renderer* renderer, float sx, float sy);
-		void drawComboAssets(Renderer* renderer, float sx, float sy);
-		void drawJudgmentAsset(Renderer* renderer, float sx, float sy);
-		void drawLifeAssets(Renderer* renderer, float sx, float sy);
-		void drawApVideo(Renderer* renderer, float sx, float sy, float vpW, float vpH);
+		void drawScoreBarAssets(Renderer* renderer, float sx, float sy, float ox, float oy);
+		void drawComboAssets(Renderer* renderer, float sx, float sy, float ox, float oy);
+		void drawJudgmentAsset(Renderer* renderer, float sx, float sy, float ox, float oy);
+		void drawLifeAssets(Renderer* renderer, float sx, float sy, float ox, float oy);
+		void drawApVideo(Renderer* renderer, float sx, float sy, float ox, float oy);
 
 		// Intro (pre-chart) draw helpers
 		float introOffset{ 0.f };
@@ -116,10 +122,10 @@ namespace MikuMikuWorld
 		// fade-in (main .object [2]: transparency 100→0 over frames 300..395).
 		// Updated at the start of drawAssetPass.
 		float hudAlpha{ 1.f };
-		void drawIntroBackground(Renderer* renderer, float sx, float sy, float videoTime);
-		void drawIntroStartGrad(Renderer* renderer, float sx, float sy, float videoTime);
-		void drawIntroCard(Renderer* renderer, float sx, float sy, float videoTime,
-		                   const Jacket& jacket);
-		void drawIntroText(Renderer* renderer, float sx, float sy, float videoTime);
+		void drawIntroBackground(Renderer* renderer, float vpWidth, float vpHeight);
+		void drawIntroStartGrad(Renderer* renderer, float sx, float sy, float ox, float oy, float videoTime);
+		void drawIntroCard(Renderer* renderer, float sx, float sy, float ox, float oy,
+		                   float videoTime, const Jacket& jacket);
+		void drawIntroText(Renderer* renderer, float sx, float sy, float ox, float oy, float videoTime);
 	};
 }

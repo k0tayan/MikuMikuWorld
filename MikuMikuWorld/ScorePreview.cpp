@@ -343,12 +343,29 @@ namespace MikuMikuWorld
 		if (context.scorePreviewDrawData.noteSpeed != config.pvNoteSpeed)
 			context.scorePreviewDrawData.calculateDrawData(context.score);
 
+		const std::string defaultFontPath = Application::getAppDir() + "res/fonts/NotoSansCJK-Regular.ttc";
+		auto resolveIntroFont = [&]() -> std::string {
+			const std::string& configured = config.pvIntroFontPath;
+			if (!configured.empty() && IO::File::exists(configured))
+				return configured;
+			return defaultFontPath;
+		};
 		if (!overlayInitAttempted)
 		{
 			overlayInitAttempted = true;
-			overlay.init(Application::getAppDir() + "res/fonts/NotoSansCJK-Regular.ttc",
+			lastIntroFontPath = resolveIntroFont();
+			overlay.init(lastIntroFontPath,
 			             Application::getAppDir() + "res/overlay/",
 			             Application::getUserDataDir() + "overlay_cache/ap");
+		}
+		else
+		{
+			const std::string chosen = resolveIntroFont();
+			if (chosen != lastIntroFontPath)
+			{
+				lastIntroFontPath = chosen;
+				overlay.reloadFont(chosen);
+			}
 		}
 		// Cheap structural signature: note count usually changes when the score is edited.
 		int overlayRevision = (int)context.score.notes.size();
@@ -481,7 +498,6 @@ namespace MikuMikuWorld
 
 			const auto overlayProjection = Camera::getOffCenterOrthographicProjection(0.f, viewportWidth, viewportHeight, 0.f);
 
-			// Pass 1: RGBA assets (intro card, score bar, combo digits, judgement) with standard alpha blending
 			shader->use();
 			shader->setMatrix4("projection", overlayProjection);
 			renderer->beginBatch();
@@ -491,12 +507,10 @@ namespace MikuMikuWorld
 				overlay.drawAssetPass(renderer, viewportWidth, viewportHeight, currentTime);
 			renderer->endBatch();
 
-			// Pass 2: AP video — rendered additively since the source has a black background.
 			renderer->beginBatch();
 			overlay.drawAdditivePass(renderer, viewportWidth, viewportHeight);
 			renderer->endBatchWithBlending(GL_ONE, GL_ONE, GL_ONE, GL_ONE);
 
-			// Pass 3: R8 font atlas (intro card text)
 			if (textShader)
 			{
 				textShader->use();
@@ -505,6 +519,13 @@ namespace MikuMikuWorld
 				overlay.drawTextPass(renderer, viewportWidth, viewportHeight, context, currentTime);
 				renderer->endBatch();
 			}
+
+			shader->use();
+			shader->setMatrix4("projection", overlayProjection);
+			renderer->beginBatch();
+			overlay.drawIntroJacketOverlayPass(renderer, viewportWidth, viewportHeight,
+			                                   context.workingData.jacket, currentTime);
+			renderer->endBatch();
 		}
 
 		previewBuffer.unblind();

@@ -71,6 +71,11 @@ namespace MikuMikuWorld
 		return ok;
 	}
 
+	bool Overlay::reloadFont(const std::string& fontPath)
+	{
+		return text.init(fontPath);
+	}
+
 	void Overlay::onScoreChanged(const Score& score)
 	{
 		buildTimeline(score);
@@ -201,7 +206,7 @@ namespace MikuMikuWorld
 		if (allPerfectTriggered) allPerfectTimer += dt;
 	}
 
-	void Overlay::drawScoreBarAssets(Renderer* renderer, float sx, float sy)
+	void Overlay::drawScoreBarAssets(Renderer* renderer, float sx, float sy, float ox, float oy)
 	{
 		// sekai.obj2 @スコア at .exo parent (-583.5, -471) / 150% → canvas (376.5, 69).
 		// Image scale = tempbuffer 0.2145 × parent 1.5 = 0.32175.
@@ -209,8 +214,8 @@ namespace MikuMikuWorld
 		constexpr float COMP_CX    = 376.5f;
 		constexpr float COMP_CY    = 69.f;
 
-		const float bgCX = COMP_CX * sx;
-		const float bgCY = COMP_CY * sy;
+		const float bgCX = ox + COMP_CX * sx;
+		const float bgCY = oy + COMP_CY * sy;
 
 		if (const Texture* t = OverlayAssets::get(assets.barBg))
 		{
@@ -398,12 +403,12 @@ namespace MikuMikuWorld
 		}
 	}
 
-	void Overlay::drawComboAssets(Renderer* renderer, float sx, float sy)
+	void Overlay::drawComboAssets(Renderer* renderer, float sx, float sy, float ox, float oy)
 	{
 		if (currentCombo <= 0) return;
 
-		const float compCX = COMBO_COMP_CX * sx;
-		const float compCY = COMBO_COMP_CY * sy;
+		const float compCX = ox + COMBO_COMP_CX * sx;
+		const float compCY = oy + COMBO_COMP_CY * sy;
 
 		// AP backglow pulse: period 1.5s, 0→1.
 		const float apAlpha = std::min(1.f,
@@ -539,7 +544,7 @@ namespace MikuMikuWorld
 		}
 	}
 
-	void Overlay::drawLifeAssets(Renderer* renderer, float sx, float sy)
+	void Overlay::drawLifeAssets(Renderer* renderer, float sx, float sy, float ox, float oy)
 	{
 		if (!assets.hasLife()) return;
 
@@ -548,8 +553,8 @@ namespace MikuMikuWorld
 		constexpr float COMP_CY    =   62.5f;
 		constexpr float COMP_SCALE = 0.1733f;
 
-		const float cx = COMP_CX * sx;
-		const float cy = COMP_CY * sy;
+		const float cx = ox + COMP_CX * sx;
+		const float cy = oy + COMP_CY * sy;
 
 		if (const Texture* t = OverlayAssets::get(assets.lifeBg))
 		{
@@ -612,7 +617,7 @@ namespace MikuMikuWorld
 		}
 	}
 
-	void Overlay::drawJudgmentAsset(Renderer* renderer, float sx, float sy)
+	void Overlay::drawJudgmentAsset(Renderer* renderer, float sx, float sy, float ox, float oy)
 	{
 		if (judgmentFlashTimer <= 0.f) return;
 		const Texture* t = OverlayAssets::get(assets.judgePerfect);
@@ -638,13 +643,12 @@ namespace MikuMikuWorld
 
 		const float w = (float)t->getWidth()  * sx * scale;
 		const float h = (float)t->getHeight() * sy * scale;
-		const float cx = JUDGE_X * sx;
-		const float cy = JUDGE_Y * sy;
+		const float cx = ox + JUDGE_X * sx;
+		const float cy = oy + JUDGE_Y * sy;
 		drawTexCentered(renderer, t, cx, cy, w, h, 115, alpha * hudAlpha);
 	}
 
-	void Overlay::drawApVideo(Renderer* renderer, float /*sx*/, float /*sy*/,
-	                          float vpW, float vpH)
+	void Overlay::drawApVideo(Renderer* renderer, float sx, float sy, float ox, float oy)
 	{
 		if (!allPerfectTriggered || !apVideo.isOpen()) return;
 
@@ -653,12 +657,18 @@ namespace MikuMikuWorld
 		unsigned int texId = apVideo.getGLTexture();
 		if (!texId) return;
 
+		// 16:9 ソース動画をレイアウトに合わせて letterbox で配置。
+		const float boxL = ox;
+		const float boxT = oy;
+		const float boxR = ox + LAYOUT_WIDTH  * sx;
+		const float boxB = oy + LAYOUT_HEIGHT * sy;
+
 		// Push a raw quad because the video texture is owned outside ResourceManager.
 		std::array<DirectX::XMFLOAT4, 4> pos{
-			DirectX::XMFLOAT4{ vpW, 0.f,   0.f, 1.f },
-			DirectX::XMFLOAT4{ vpW, vpH,   0.f, 1.f },
-			DirectX::XMFLOAT4{ 0.f, vpH,   0.f, 1.f },
-			DirectX::XMFLOAT4{ 0.f, 0.f,   0.f, 1.f },
+			DirectX::XMFLOAT4{ boxR, boxT, 0.f, 1.f },
+			DirectX::XMFLOAT4{ boxR, boxB, 0.f, 1.f },
+			DirectX::XMFLOAT4{ boxL, boxB, 0.f, 1.f },
+			DirectX::XMFLOAT4{ boxL, boxT, 0.f, 1.f },
 		};
 		std::array<DirectX::XMFLOAT4, 4> uv{
 			DirectX::XMFLOAT4{ 1.f, 0.f, 0.f, 0.f },
@@ -731,16 +741,16 @@ namespace MikuMikuWorld
 		}
 	}
 
-	void Overlay::drawIntroBackground(Renderer* renderer, float sx, float sy, float videoTime)
+	void Overlay::drawIntroBackground(Renderer* renderer, float vpWidth, float vpHeight)
 	{
-		(void)videoTime;
-		// .object [1]: solid #68689c at α=0.80.
+		// .object [1]: solid #68689c at α=0.80. HUD を letterbox しても裏のステージが
+		// 透けないよう、背景色だけは viewport 全体に敷く。
 		text.drawSolidRect(renderer, 0.f, 0.f,
-		                   LAYOUT_WIDTH * sx, LAYOUT_HEIGHT * sy,
+		                   vpWidth, vpHeight,
 		                   Color(0x68 / 255.f, 0x68 / 255.f, 0x9c / 255.f, 0.80f), 70);
 	}
 
-	void Overlay::drawIntroStartGrad(Renderer* renderer, float sx, float sy, float videoTime)
+	void Overlay::drawIntroStartGrad(Renderer* renderer, float sx, float sy, float ox, float oy, float videoTime)
 	{
 		const Texture* t = OverlayAssets::get(assets.startGrad);
 		if (!t) return;
@@ -757,8 +767,8 @@ namespace MikuMikuWorld
 
 			const float w = (float)t->getWidth()  * 1.5f * sx;
 			const float h = (float)t->getHeight() * 1.5f * sy;
-			const float cx = exoX(0.f) * sx;
-			const float cy = exoY(yOffset) * sy;
+			const float cx = ox + exoX(0.f) * sx;
+			const float cy = oy + exoY(yOffset) * sy;
 			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h }, *t,
 			                        0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
@@ -769,8 +779,8 @@ namespace MikuMikuWorld
 		drawWave(180.f, 300.f);
 	}
 
-	void Overlay::drawIntroCard(Renderer* renderer, float sx, float sy, float videoTime,
-	                            const Jacket& jacket)
+	void Overlay::drawIntroCard(Renderer* renderer, float sx, float sy, float ox, float oy,
+	                            float videoTime, const Jacket& jacket)
 	{
 		const float alpha = introFadeOutAlpha(videoTime);
 		if (alpha <= 0.f) return;
@@ -782,30 +792,20 @@ namespace MikuMikuWorld
 			const float target = 1024.f * 0.3926f;
 			const float w = target * sx;
 			const float h = target * sy;
-			const float cx = exoX(-661.5f + off.x) * sx;
-			const float cy = exoY(288.f   + off.y) * sy;
+			const float cx = ox + exoX(-661.5f + off.x) * sx;
+			const float cy = oy + exoY(288.f   + off.y) * sy;
 			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h }, *t,
 			                        0.f, (float)t->getWidth(),
 			                        0.f, (float)t->getHeight(),
 			                        Color(1.f, 1.f, 1.f, alpha), 90);
 		}
 
-		// .object [23]: jacket at (-618, 245), 78.75% of a 512x512 source.
-		if (const Texture* t = jacket.getTexture())
-		{
-			const float target = 512.f * 0.7875f;
-			const float w = target * sx;
-			const float h = target * sy;
-			const float cx = exoX(-618.f) * sx;
-			const float cy = exoY(245.f)  * sy;
-			renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h }, *t,
-			                        0.f, (float)t->getWidth(),
-			                        0.f, (float)t->getHeight(),
-			                        Color(1.f, 1.f, 1.f, alpha), 91);
-		}
+		// ジャケットはテキストパス後に drawIntroJacketOverlayPass で最前面に再描画するので、
+		// ここでは描画しない。
+		(void)jacket;
 	}
 
-	void Overlay::drawIntroText(Renderer* renderer, float sx, float sy, float videoTime)
+	void Overlay::drawIntroText(Renderer* renderer, float sx, float sy, float ox, float oy, float videoTime)
 	{
 		const float alpha = introFadeOutAlpha(videoTime);
 		if (alpha <= 0.f) return;
@@ -813,34 +813,35 @@ namespace MikuMikuWorld
 		const float unit = std::min(sx, sy);
 		const Color white(1.f, 1.f, 1.f, alpha);
 
-		// .object [10]: difficulty text at (-855, 446), size 84 × 38%. Shares [5]'s slide-in.
+		// .object [12]: difficulty text at (-855, 486), size 84 × 38%, align=6 (左下)。
+		// exoのYは下端基準なので、スクリーン座標で行高ぶん上にずらして drawText の top に揃える。
 		{
 			std::string up;
 			up.reserve(introData.difficulty.size());
 			for (char c : introData.difficulty) up.push_back((char)std::toupper((unsigned char)c));
 			const auto off = diffBadgeSlideOffset(videoTime);
 			const float scale = 84.f * 0.38f / 64.f * unit;
-			text.drawText(renderer, up,
-			              exoX(-855.f + off.x) * sx, exoY(446.f + off.y) * sy,
-			              scale, white, 122, TextAlign::Left);
+			const float screenX = ox + exoX(-855.f + off.x) * sx;
+			const float screenY = oy + exoY(486.f + off.y) * sy - text.getLineHeight(scale);
+			text.drawText(renderer, up, screenX, screenY, scale, white, 122, TextAlign::Left);
 		}
 
-		// .object [15]: extra/level text above the title (e.g. "Lv. 30").
+		// .object [15]: extra/level text (e.g. "Lv. 30"), size 72 × 38%, align=0 (左上)。
 		if (!introData.extra.empty())
 		{
-			const float scale = 27.f / 64.f * unit;
+			const float scale = 72.f * 0.38f / 64.f * unit;
 			text.drawText(renderer, introData.extra,
-			              exoX(-380.f) * sx, exoY(200.f) * sy,
+			              ox + exoX(-380.f) * sx, oy + exoY(200.f) * sy,
 			              scale, white, 122, TextAlign::Left);
 		}
 
-		// .object [14]: title at (-378.5, 274), size 96 × 40%.
+		// .object [17]: title at (-378.5, 324), size 96 × 40%, align=6 (左下)。
 		if (!introData.title.empty())
 		{
 			const float scale = 96.f * 0.40f / 64.f * unit;
-			text.drawText(renderer, introData.title,
-			              exoX(-378.5f) * sx, exoY(274.f) * sy,
-			              scale, white, 122, TextAlign::Left);
+			const float screenX = ox + exoX(-378.5f) * sx;
+			const float screenY = oy + exoY(324.f) * sy - text.getLineHeight(scale);
+			text.drawText(renderer, introData.title, screenX, screenY, scale, white, 122, TextAlign::Left);
 		}
 
 		// .object [16][18]: description lines.
@@ -868,11 +869,25 @@ namespace MikuMikuWorld
 		auto [desc1, desc2] = formatDescription();
 		const float descScale = 27.f / 64.f * unit;
 		text.drawText(renderer, desc1,
-		              exoX(-380.f) * sx, exoY(364.5f) * sy,
+		              ox + exoX(-380.f) * sx, oy + exoY(364.5f) * sy,
 		              descScale, white, 122, TextAlign::Left);
 		text.drawText(renderer, desc2,
-		              exoX(-380.f) * sx, exoY(413.f) * sy,
+		              ox + exoX(-380.f) * sx, oy + exoY(413.f) * sy,
 		              descScale, white, 122, TextAlign::Left);
+	}
+
+	namespace
+	{
+		// HUD は 1920x1080 レイアウトのアスペクト比を維持する。viewport のアスペクトと
+		// 合わないときは uniform scale + letterbox/pillarbox で中央寄せする。
+		struct HudLayout { float scale; float ox; float oy; };
+		HudLayout computeHudLayout(float vpWidth, float vpHeight)
+		{
+			const float scale = std::min(vpWidth / LAYOUT_WIDTH, vpHeight / LAYOUT_HEIGHT);
+			const float ox = (vpWidth  - LAYOUT_WIDTH  * scale) * 0.5f;
+			const float oy = (vpHeight - LAYOUT_HEIGHT * scale) * 0.5f;
+			return { scale, ox, oy };
+		}
 	}
 
 	void Overlay::drawIntroPass(Renderer* renderer, float vpWidth, float vpHeight,
@@ -881,20 +896,18 @@ namespace MikuMikuWorld
 		if (vpWidth <= 0.f || vpHeight <= 0.f) return;
 		if (!isIntroShowing(chartTime)) return;
 
-		const float sx = vpWidth / LAYOUT_WIDTH;
-		const float sy = vpHeight / LAYOUT_HEIGHT;
+		const auto layout = computeHudLayout(vpWidth, vpHeight);
 		const float videoTime = chartTime + introOffset;
 
-		drawIntroBackground(renderer, sx, sy, videoTime);
-		drawIntroStartGrad(renderer, sx, sy, videoTime);
-		drawIntroCard(renderer, sx, sy, videoTime, jacket);
+		drawIntroBackground(renderer, vpWidth, vpHeight);
+		drawIntroStartGrad(renderer, layout.scale, layout.scale, layout.ox, layout.oy, videoTime);
+		drawIntroCard(renderer, layout.scale, layout.scale, layout.ox, layout.oy, videoTime, jacket);
 	}
 
 	void Overlay::drawAssetPass(Renderer* renderer, float vpWidth, float vpHeight, float chartTime)
 	{
 		if (vpWidth <= 0.f || vpHeight <= 0.f) return;
-		const float sx = vpWidth / LAYOUT_WIDTH;
-		const float sy = vpHeight / LAYOUT_HEIGHT;
+		const auto layout = computeHudLayout(vpWidth, vpHeight);
 
 		// Post-intro HUD fade-in (.object [2]): frames 300..395.
 		hudAlpha = 1.f;
@@ -916,19 +929,18 @@ namespace MikuMikuWorld
 				                   Color(0.f, 0.f, 0.f, 0.5f), 150);
 				return;
 			}
-			drawScoreBarAssets(renderer, sx, sy);
-			drawComboAssets(renderer, sx, sy);
-			drawLifeAssets(renderer, sx, sy);
-			drawJudgmentAsset(renderer, sx, sy);
+			drawScoreBarAssets(renderer, layout.scale, layout.scale, layout.ox, layout.oy);
+			drawComboAssets(renderer, layout.scale, layout.scale, layout.ox, layout.oy);
+			drawLifeAssets(renderer, layout.scale, layout.scale, layout.ox, layout.oy);
+			drawJudgmentAsset(renderer, layout.scale, layout.scale, layout.ox, layout.oy);
 		}
 	}
 
 	void Overlay::drawAdditivePass(Renderer* renderer, float vpWidth, float vpHeight)
 	{
 		if (vpWidth <= 0.f || vpHeight <= 0.f) return;
-		const float sx = vpWidth / LAYOUT_WIDTH;
-		const float sy = vpHeight / LAYOUT_HEIGHT;
-		drawApVideo(renderer, sx, sy, vpWidth, vpHeight);
+		const auto layout = computeHudLayout(vpWidth, vpHeight);
+		drawApVideo(renderer, layout.scale, layout.scale, layout.ox, layout.oy);
 	}
 
 	void Overlay::drawTextPass(Renderer* renderer, float vpWidth, float vpHeight,
@@ -936,13 +948,12 @@ namespace MikuMikuWorld
 	{
 		(void)context;
 		if (!isInitialized() || vpWidth <= 0.f || vpHeight <= 0.f) return;
-		const float sx = vpWidth / LAYOUT_WIDTH;
-		const float sy = vpHeight / LAYOUT_HEIGHT;
+		const auto layout = computeHudLayout(vpWidth, vpHeight);
 
 		if (isIntroShowing(chartTime))
 		{
 			const float videoTime = chartTime + introOffset;
-			drawIntroText(renderer, sx, sy, videoTime);
+			drawIntroText(renderer, layout.scale, layout.scale, layout.ox, layout.oy, videoTime);
 		}
 
 		// .object [29][30]: α 0→1 black fade-in over AP-local 4.52..5.25s, then hold.
@@ -960,5 +971,33 @@ namespace MikuMikuWorld
 				                   Color(0.f, 0.f, 0.f, std::clamp(alpha, 0.f, 1.f)), 250);
 			}
 		}
+	}
+
+	void Overlay::drawIntroJacketOverlayPass(Renderer* renderer, float vpWidth, float vpHeight,
+	                                         const Jacket& jacket, float chartTime)
+	{
+		if (vpWidth <= 0.f || vpHeight <= 0.f) return;
+		if (!isIntroShowing(chartTime)) return;
+
+		const Texture* t = jacket.getTexture();
+		if (!t) return;
+
+		const auto layout = computeHudLayout(vpWidth, vpHeight);
+		const float videoTime = chartTime + introOffset;
+		const float alpha = introFadeOutAlpha(videoTime);
+		if (alpha <= 0.f) return;
+
+		// .object [23]: jacket at (-618, 245), 78.75% of a 512x512 source.
+		const float sx = layout.scale;
+		const float sy = layout.scale;
+		const float target = 512.f * 0.7875f;
+		const float w = target * sx;
+		const float h = target * sy;
+		const float cx = layout.ox + exoX(-618.f) * sx;
+		const float cy = layout.oy + exoY(245.f)  * sy;
+		renderer->drawRectangle({ cx - w * 0.5f, cy - h * 0.5f }, { w, h }, *t,
+		                        0.f, (float)t->getWidth(),
+		                        0.f, (float)t->getHeight(),
+		                        Color(1.f, 1.f, 1.f, alpha), 130);
 	}
 }
