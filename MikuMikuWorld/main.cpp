@@ -1,50 +1,13 @@
 #include "Application.h"
 #include "IO.h"
 #include "OfflineRenderer.h"
+#include "Platform/Paths.h"
 #include "UI.h"
 #include <GLFW/glfw3.h>
-#include <mach-o/dyld.h>
-#include <cstdlib>
 #include <cstring>
-#include <filesystem>
 
 namespace mmw = MikuMikuWorld;
 mmw::Application app;
-
-static std::string getExecutableDir()
-{
-	char buf[4096];
-	uint32_t size = sizeof(buf);
-	if (_NSGetExecutablePath(buf, &size) != 0)
-		return {};
-
-	// Resolve symlinks (argv0 may be a symlink into the bundle)
-	std::error_code ec;
-	std::filesystem::path exePath = std::filesystem::canonical(buf, ec);
-	if (ec)
-		exePath = buf;
-
-	// Inside a .app bundle the executable lives at Contents/MacOS/<exe>.
-	// The companion Resources/ directory is one level up.
-	std::filesystem::path contentsDir = exePath.parent_path().parent_path();
-	std::filesystem::path resourcesDir = contentsDir / "Resources";
-	if (std::filesystem::exists(resourcesDir))
-		return resourcesDir.string() + "/";
-
-	return exePath.parent_path().string() + "/";
-}
-
-static std::string getUserDataDir()
-{
-	const char* home = std::getenv("HOME");
-	if (!home || !*home)
-		return {};
-
-	std::filesystem::path dir = std::filesystem::path(home) / "Library" / "Application Support" / "MikuMikuWorld";
-	std::error_code ec;
-	std::filesystem::create_directories(dir, ec);
-	return dir.string() + "/";
-}
 
 static void dropCallback(GLFWwindow*, int count, const char** paths)
 {
@@ -54,15 +17,18 @@ static void dropCallback(GLFWwindow*, int count, const char** paths)
 
 int main(int argc, char** argv)
 {
+	const std::string resourceDir = mmw::Platform::getResourceDir();
+	const std::string userDataDir = mmw::Platform::getUserDataDir();
+
 	for (int i = 1; i < argc; ++i)
 	{
 		if (std::strcmp(argv[i], "--render") == 0)
-			return mmw::runOfflineRender(argc, argv, getExecutableDir(), getUserDataDir());
+			return mmw::runOfflineRender(argc, argv, resourceDir, userDataDir);
 	}
 
 	try
 	{
-		mmw::Result result = app.initialize(getExecutableDir(), getUserDataDir());
+		mmw::Result result = app.initialize(resourceDir, userDataDir);
 
 		if (!result.isOk())
 			throw std::runtime_error(result.getMessage().c_str());

@@ -1,11 +1,18 @@
 cmake_minimum_required(VERSION 3.21)
-project(MikuMikuWorld
-    VERSION 1.0.0
-    LANGUAGES C CXX OBJC OBJCXX
-)
 
-if(NOT APPLE)
-    message(FATAL_ERROR "MikuMikuWorld is macOS-only. Windows support was dropped during the Cocoa port.")
+if(APPLE)
+    project(MikuMikuWorld
+        VERSION 1.0.0
+        LANGUAGES C CXX OBJC OBJCXX
+    )
+elseif(UNIX)
+    # Linux builds only ship the headless offline renderer (mmw-render).
+    project(MikuMikuWorld
+        VERSION 1.0.0
+        LANGUAGES C CXX
+    )
+else()
+    message(FATAL_ERROR "MikuMikuWorld supports macOS (full editor) and Linux (headless mmw-render). Windows support was dropped during the Cocoa port.")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -17,7 +24,9 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
 endif()
 
-set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "Minimum macOS version")
+if(APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "Minimum macOS version")
+endif()
 
 # ---------------------------------------------------------------------------
 # External dependencies fetched at configure time
@@ -61,8 +70,9 @@ target_include_directories(zlibstatic PUBLIC
 set(MMW_SRC_DIR ${CMAKE_SOURCE_DIR}/MikuMikuWorld)
 set(DEPS_DIR   ${CMAKE_SOURCE_DIR}/Depends)
 
-set(MMW_SOURCES
-    ${MMW_SRC_DIR}/main.cpp
+# Core sources shared by the GUI (.app) and CLI (mmw-render) targets. Entry
+# points (main.cpp, main_cli.cpp) and platform-specific files live below.
+set(MMW_CORE_SOURCES
     ${MMW_SRC_DIR}/Application.cpp
     ${MMW_SRC_DIR}/ApplicationConfiguration.cpp
     ${MMW_SRC_DIR}/Background.cpp
@@ -121,10 +131,6 @@ set(MMW_SOURCES
     ${MMW_SRC_DIR}/Audio/AudioManager.cpp
     ${MMW_SRC_DIR}/Audio/Sound.cpp
 
-    ${MMW_SRC_DIR}/Platform/Cocoa/MessageBox.mm
-    ${MMW_SRC_DIR}/Platform/Cocoa/FileDialog.mm
-    ${MMW_SRC_DIR}/Platform/Cocoa/Locale.mm
-
     ${MMW_SRC_DIR}/Rendering/Camera.cpp
     ${MMW_SRC_DIR}/Rendering/Framebuffer.cpp
     ${MMW_SRC_DIR}/Rendering/Renderer.cpp
@@ -141,26 +147,37 @@ set(MMW_SOURCES
     ${MMW_SRC_DIR}/ImGui/imgui_widgets.cpp
 )
 
+if(APPLE)
+    list(APPEND MMW_PLATFORM_SOURCES
+        ${MMW_SRC_DIR}/Platform/Cocoa/MessageBox.mm
+        ${MMW_SRC_DIR}/Platform/Cocoa/FileDialog.mm
+        ${MMW_SRC_DIR}/Platform/Cocoa/Locale.mm
+        ${MMW_SRC_DIR}/Platform/Cocoa/Paths.cpp
+    )
+else()
+    list(APPEND MMW_PLATFORM_SOURCES
+        ${MMW_SRC_DIR}/Platform/Linux/MessageBox.cpp
+        ${MMW_SRC_DIR}/Platform/Linux/FileDialog.cpp
+        ${MMW_SRC_DIR}/Platform/Linux/Locale.cpp
+        ${MMW_SRC_DIR}/Platform/Linux/Paths.cpp
+    )
+endif()
+
 set(DEPS_SOURCES
     ${DEPS_DIR}/glad/src/glad.c
     ${DEPS_DIR}/stb_vorbis/stb_vorbis.c
 )
 
 # ---------------------------------------------------------------------------
-# Executable (.app bundle)
+# Shared core static library
 # ---------------------------------------------------------------------------
-set(MMW_ICON_FILE ${MMW_SRC_DIR}/res/mmw_icon.icns)
-set_source_files_properties(${MMW_ICON_FILE} PROPERTIES
-    MACOSX_PACKAGE_LOCATION "Resources"
-)
-
-add_executable(MikuMikuWorld MACOSX_BUNDLE
-    ${MMW_SOURCES}
+add_library(mmw_core STATIC
+    ${MMW_CORE_SOURCES}
+    ${MMW_PLATFORM_SOURCES}
     ${DEPS_SOURCES}
-    ${MMW_ICON_FILE}
 )
 
-target_include_directories(MikuMikuWorld PRIVATE
+target_include_directories(mmw_core PUBLIC
     ${MMW_SRC_DIR}
     ${MMW_SRC_DIR}/Platform/Stubs
     ${DEPS_DIR}/DirectXMath-master/Inc
@@ -172,60 +189,96 @@ target_include_directories(MikuMikuWorld PRIVATE
     ${DEPS_DIR}/json
 )
 
-target_compile_definitions(MikuMikuWorld PRIVATE
+target_compile_definitions(mmw_core PUBLIC
     APP_VERSION_STRING="${PROJECT_VERSION}"
     IMGUI_DEFINE_MATH_OPERATORS
     GL_SILENCE_DEPRECATION
 )
 
-find_library(COCOA_LIB Cocoa REQUIRED)
-find_library(OPENGL_LIB OpenGL REQUIRED)
-find_library(IOKIT_LIB IOKit REQUIRED)
-find_library(COREFOUNDATION_LIB CoreFoundation REQUIRED)
-find_library(APPKIT_LIB AppKit REQUIRED)
-
-target_link_libraries(MikuMikuWorld PRIVATE
+target_link_libraries(mmw_core PUBLIC
     glfw
     zlibstatic
-    ${COCOA_LIB}
-    ${OPENGL_LIB}
-    ${IOKIT_LIB}
-    ${COREFOUNDATION_LIB}
-    ${APPKIT_LIB}
 )
 
-# ---------------------------------------------------------------------------
-# Bundle metadata & resources
-# ---------------------------------------------------------------------------
-set_target_properties(MikuMikuWorld PROPERTIES
-    MACOSX_BUNDLE_BUNDLE_NAME            "MikuMikuWorld"
-    MACOSX_BUNDLE_GUI_IDENTIFIER         "com.crash5band.MikuMikuWorld"
-    MACOSX_BUNDLE_BUNDLE_VERSION         "${PROJECT_VERSION}"
-    MACOSX_BUNDLE_SHORT_VERSION_STRING   "${PROJECT_VERSION}"
-    MACOSX_BUNDLE_COPYRIGHT              "Copyright (c) crash5band"
-    MACOSX_BUNDLE_ICON_FILE              "mmw_icon.icns"
-    MACOSX_BUNDLE_INFO_PLIST             "${MMW_SRC_DIR}/Platform/Cocoa/Info.plist.in"
-)
+if(APPLE)
+    find_library(COCOA_LIB Cocoa REQUIRED)
+    find_library(OPENGL_LIB OpenGL REQUIRED)
+    find_library(IOKIT_LIB IOKit REQUIRED)
+    find_library(COREFOUNDATION_LIB CoreFoundation REQUIRED)
+    find_library(APPKIT_LIB AppKit REQUIRED)
 
-# Copy res/ into the bundle's Resources directory on every build. The bundle
-# output path varies by generator (Xcode puts binaries under $<CONFIG>/), so
-# use the generator expression for the bundle content dir.
-add_custom_command(TARGET MikuMikuWorld POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${MMW_SRC_DIR}/res
-        $<TARGET_BUNDLE_CONTENT_DIR:MikuMikuWorld>/Resources/res
-    COMMENT "Copying res/ into .app bundle"
-    VERBATIM
-)
+    target_link_libraries(mmw_core PUBLIC
+        ${COCOA_LIB}
+        ${OPENGL_LIB}
+        ${IOKIT_LIB}
+        ${COREFOUNDATION_LIB}
+        ${APPKIT_LIB}
+    )
+else()
+    find_package(OpenGL REQUIRED)
+    target_link_libraries(mmw_core PUBLIC OpenGL::GL ${CMAKE_DL_LIBS})
+endif()
 
-# ---------------------------------------------------------------------------
-# Per-source overrides
-# ---------------------------------------------------------------------------
-# stb_vorbis is included as source in Audio/Sound.h *and* compiled as its own
-# translation unit via Depends/stb_vorbis/stb_vorbis.c. Suppress its many
-# warnings so they don't drown out real diagnostics.
+# stb_vorbis and glad are third-party C with many warnings; silence them so
+# real diagnostics stand out.
 set_source_files_properties(
     ${DEPS_DIR}/stb_vorbis/stb_vorbis.c
     ${DEPS_DIR}/glad/src/glad.c
     PROPERTIES COMPILE_FLAGS "-w"
+)
+
+# ---------------------------------------------------------------------------
+# CLI target (both macOS and Linux): headless offline renderer
+# ---------------------------------------------------------------------------
+add_executable(mmw-render
+    ${MMW_SRC_DIR}/main_cli.cpp
+)
+target_link_libraries(mmw-render PRIVATE mmw_core)
+
+# ---------------------------------------------------------------------------
+# GUI target (macOS only): full editor shipped as a .app bundle
+# ---------------------------------------------------------------------------
+if(APPLE)
+    set(MMW_ICON_FILE ${MMW_SRC_DIR}/res/mmw_icon.icns)
+    set_source_files_properties(${MMW_ICON_FILE} PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources"
+    )
+
+    add_executable(MikuMikuWorld MACOSX_BUNDLE
+        ${MMW_SRC_DIR}/main.cpp
+        ${MMW_ICON_FILE}
+    )
+    target_link_libraries(MikuMikuWorld PRIVATE mmw_core)
+
+    set_target_properties(MikuMikuWorld PROPERTIES
+        MACOSX_BUNDLE_BUNDLE_NAME            "MikuMikuWorld"
+        MACOSX_BUNDLE_GUI_IDENTIFIER         "com.crash5band.MikuMikuWorld"
+        MACOSX_BUNDLE_BUNDLE_VERSION         "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_SHORT_VERSION_STRING   "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_COPYRIGHT              "Copyright (c) crash5band"
+        MACOSX_BUNDLE_ICON_FILE              "mmw_icon.icns"
+        MACOSX_BUNDLE_INFO_PLIST             "${MMW_SRC_DIR}/Platform/Cocoa/Info.plist.in"
+    )
+
+    # Copy res/ into the bundle's Resources directory on every build. The bundle
+    # output path varies by generator (Xcode puts binaries under $<CONFIG>/), so
+    # use the generator expression for the bundle content dir.
+    add_custom_command(TARGET MikuMikuWorld POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${MMW_SRC_DIR}/res
+            $<TARGET_BUNDLE_CONTENT_DIR:MikuMikuWorld>/Resources/res
+        COMMENT "Copying res/ into .app bundle"
+        VERBATIM
+    )
+endif()
+
+# For CLI builds on any platform, drop a `res/` directory next to the binary so
+# Platform::getResourceDir() resolves to it without the bundle layout. Skipped
+# on macOS if only the .app is being built; harmless otherwise.
+add_custom_command(TARGET mmw-render POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${MMW_SRC_DIR}/res
+        $<TARGET_FILE_DIR:mmw-render>/res
+    COMMENT "Copying res/ next to mmw-render"
+    VERBATIM
 )
