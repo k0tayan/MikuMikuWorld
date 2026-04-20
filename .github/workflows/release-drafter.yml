@@ -15,5 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: release-drafter/release-drafter@5de93583980a40bd78603b6dfdcda5b4df377b32 # v7.2.0
+        with:
+          # target_commitish を master に固定する。PR イベント時の既定値
+          # (refs/pull/*/merge) は GitHub Releases API に create-release
+          # する際に拒否されるため、ドラフト新規作成が失敗する。
+          # v7 で disable-releaser は廃止されているので commitish で回避。
+          commitish: refs/heads/master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
