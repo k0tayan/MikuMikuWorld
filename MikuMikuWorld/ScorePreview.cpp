@@ -522,6 +522,14 @@ namespace MikuMikuWorld
 				overlay.drawTextPass(renderer, viewportWidth, viewportHeight, context, currentTime);
 				renderer->endBatch();
 			}
+
+			// Pass 4: ジャケットをカード要素 (難易度テキスト等) の上に被せる。
+			shader->use();
+			shader->setMatrix4("projection", overlayProjection);
+			renderer->beginBatch();
+			overlay.drawIntroJacketOverlayPass(renderer, viewportWidth, viewportHeight,
+			                                   context.workingData.jacket, currentTime);
+			renderer->endBatch();
 		}
 
 		previewBuffer.unblind();
