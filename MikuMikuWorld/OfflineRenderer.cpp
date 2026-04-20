@@ -1,7 +1,6 @@
 #include "OfflineRenderer.h"
 
 #include <glad/glad.h>
-#include <GLFW/glfw3.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -21,6 +20,7 @@
 #include "NativeScoreSerializer.h"
 #include "Note.h"
 #include "NoteSkin.h"
+#include "Platform/HeadlessGL.h"
 #include "PreviewData.h"
 #include "Rendering/Renderer.h"
 #include "Score.h"
@@ -701,34 +701,8 @@ namespace MikuMikuWorld
 			return 0;
 		}
 
-		// GLFW hidden-window context setup
-		if (!glfwInit())
-		{
-			std::fprintf(stderr, "Failed to initialize GLFW\n");
+		if (!Platform::initHeadlessGL(opt.width, opt.height))
 			return 3;
-		}
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-		glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-		glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-
-		GLFWwindow* window = glfwCreateWindow(opt.width, opt.height, "mmw-render", NULL, NULL);
-		if (!window)
-		{
-			std::fprintf(stderr, "Failed to create offscreen GLFW window\n");
-			glfwTerminate();
-			return 3;
-		}
-		glfwMakeContextCurrent(window);
-
-		if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-		{
-			std::fprintf(stderr, "Failed to load OpenGL procs\n");
-			glfwDestroyWindow(window);
-			glfwTerminate();
-			return 3;
-		}
 
 		glEnable(GL_BLEND);
 		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
@@ -757,8 +731,7 @@ namespace MikuMikuWorld
 		if (!serializer)
 		{
 			std::fprintf(stderr, "Unsupported score format: %s\n", opt.scorePath.c_str());
-			glfwDestroyWindow(window);
-			glfwTerminate();
+			Platform::shutdownHeadlessGL();
 			return 4;
 		}
 
@@ -775,8 +748,7 @@ namespace MikuMikuWorld
 		catch (const std::exception& ex)
 		{
 			std::fprintf(stderr, "Failed to load score: %s\n", ex.what());
-			glfwDestroyWindow(window);
-			glfwTerminate();
+			Platform::shutdownHeadlessGL();
 			return 4;
 		}
 
@@ -859,8 +831,7 @@ namespace MikuMikuWorld
 		if (!pipe)
 		{
 			std::fprintf(stderr, "Failed to spawn ffmpeg\n");
-			glfwDestroyWindow(window);
-			glfwTerminate();
+			Platform::shutdownHeadlessGL();
 			return 5;
 		}
 
@@ -889,8 +860,7 @@ namespace MikuMikuWorld
 			{
 				std::fprintf(stderr, "ffmpeg stdin write failed at frame %d\n", frame);
 				pclose(pipe);
-				glfwDestroyWindow(window);
-				glfwTerminate();
+				Platform::shutdownHeadlessGL();
 				return 6;
 			}
 
@@ -903,8 +873,7 @@ namespace MikuMikuWorld
 		}
 
 		int ffStatus = pclose(pipe);
-		glfwDestroyWindow(window);
-		glfwTerminate();
+		Platform::shutdownHeadlessGL();
 
 		if (ffStatus != 0)
 		{

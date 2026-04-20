@@ -2,8 +2,9 @@ FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Build toolchain + GLFW X11 / Wayland development headers +
-# headless GL runtime (Mesa llvmpipe via Xvfb) + ffmpeg for muxing.
+# Build toolchain + EGL/GL development headers + Mesa software renderer +
+# ffmpeg. No X server, no Xvfb, no GLFW system package: the CLI uses EGL
+# surfaceless for its OpenGL context and never touches a display server.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
@@ -11,25 +12,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     ca-certificates \
     pkg-config \
+    libegl-dev \
     libgl-dev \
-    libglu1-mesa-dev \
-    libx11-dev \
-    libxrandr-dev \
-    libxinerama-dev \
-    libxcursor-dev \
-    libxi-dev \
-    libxkbcommon-dev \
-    libwayland-dev \
-    wayland-protocols \
-    extra-cmake-modules \
-    xvfb \
     libgl1-mesa-dri \
-    libglx-mesa0 \
-    mesa-utils \
+    libglvnd-dev \
     ffmpeg \
  && rm -rf /var/lib/apt/lists/*
 
-# Force software rasterisation so OpenGL works without a real GPU.
+# Force Mesa's software rasteriser so OpenGL works on any machine without
+# a GPU / without DRI device nodes being exposed to the container.
 ENV LIBGL_ALWAYS_SOFTWARE=1 \
     GALLIUM_DRIVER=llvmpipe \
     MESA_GL_VERSION_OVERRIDE=3.3

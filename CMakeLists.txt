@@ -54,7 +54,25 @@ FetchContent_Declare(
     GIT_SHALLOW    TRUE
 )
 
-FetchContent_MakeAvailable(glfw zlib)
+FetchContent_MakeAvailable(zlib)
+
+if(APPLE)
+    # macOS ships GLFW as a real static library (used by the editor .app and
+    # as the hidden-window GL context for the CLI).
+    FetchContent_MakeAvailable(glfw)
+else()
+    # Linux doesn't link GLFW (the CLI uses EGL surfaceless) but several
+    # GUI-only translation units still include <GLFW/glfw3.h> at compile
+    # time. Download the source so the header resolves, but skip building
+    # the library; the dead references inside mmw_core get stripped by
+    # --gc-sections.
+    FetchContent_GetProperties(glfw)
+    if(NOT glfw_POPULATED)
+        FetchContent_Populate(glfw)
+    endif()
+    add_library(glfw_headers INTERFACE)
+    target_include_directories(glfw_headers INTERFACE ${glfw_SOURCE_DIR}/include)
+endif()
 
 # zlib's CMake doesn't propagate include directories on its static target in
 # older releases. Force it here so translation units that #include <zlib.h>
@@ -140,12 +158,19 @@ set(MMW_CORE_SOURCES
     ${MMW_SRC_DIR}/ImGui/imgui.cpp
     ${MMW_SRC_DIR}/ImGui/imgui_demo.cpp
     ${MMW_SRC_DIR}/ImGui/imgui_draw.cpp
-    ${MMW_SRC_DIR}/ImGui/imgui_impl_glfw.cpp
-    ${MMW_SRC_DIR}/ImGui/imgui_impl_opengl3.cpp
     ${MMW_SRC_DIR}/ImGui/imgui_stdlib.cpp
     ${MMW_SRC_DIR}/ImGui/imgui_tables.cpp
     ${MMW_SRC_DIR}/ImGui/imgui_widgets.cpp
 )
+
+# ImGui's GLFW / OpenGL3 backends are only used by the editor; on Linux the
+# CLI doesn't render any ImGui UI and dropping them avoids pulling in X11.
+if(APPLE)
+    list(APPEND MMW_CORE_SOURCES
+        ${MMW_SRC_DIR}/ImGui/imgui_impl_glfw.cpp
+        ${MMW_SRC_DIR}/ImGui/imgui_impl_opengl3.cpp
+    )
+endif()
 
 if(APPLE)
     list(APPEND MMW_PLATFORM_SOURCES
@@ -153,6 +178,7 @@ if(APPLE)
         ${MMW_SRC_DIR}/Platform/Cocoa/FileDialog.mm
         ${MMW_SRC_DIR}/Platform/Cocoa/Locale.mm
         ${MMW_SRC_DIR}/Platform/Cocoa/Paths.cpp
+        ${MMW_SRC_DIR}/Platform/Cocoa/HeadlessGL.cpp
     )
 else()
     list(APPEND MMW_PLATFORM_SOURCES
@@ -160,6 +186,7 @@ else()
         ${MMW_SRC_DIR}/Platform/Linux/FileDialog.cpp
         ${MMW_SRC_DIR}/Platform/Linux/Locale.cpp
         ${MMW_SRC_DIR}/Platform/Linux/Paths.cpp
+        ${MMW_SRC_DIR}/Platform/Linux/HeadlessGL.cpp
     )
 endif()
 
@@ -202,12 +229,12 @@ if(NOT APPLE)
     target_compile_definitions(mmw_core PUBLIC _XM_NO_INTRINSICS_)
 endif()
 
-target_link_libraries(mmw_core PUBLIC
-    glfw
-    zlibstatic
-)
+target_link_libraries(mmw_core PUBLIC zlibstatic)
 
 if(APPLE)
+    # macOS keeps GLFW (for the GUI app + the CLI's hidden-window context).
+    target_link_libraries(mmw_core PUBLIC glfw)
+
     find_library(COCOA_LIB Cocoa REQUIRED)
     find_library(OPENGL_LIB OpenGL REQUIRED)
     find_library(IOKIT_LIB IOKit REQUIRED)
@@ -222,12 +249,21 @@ if(APPLE)
         ${APPKIT_LIB}
     )
 else()
-    find_package(OpenGL REQUIRED)
-    find_package(X11 REQUIRED)
+    # Linux uses EGL surfaceless directly and never touches GLFW/X11 at
+    # runtime. GLFW headers are consumed (glfw_headers INTERFACE lib) but
+    # the library is never built or linked. --gc-sections strips any dead
+    # GLFW references the compiler emitted from GUI-only call graphs.
+    find_package(OpenGL REQUIRED COMPONENTS OpenGL EGL)
     target_link_libraries(mmw_core PUBLIC
-        OpenGL::GL
-        X11::X11
+        glfw_headers
+        OpenGL::OpenGL
+        OpenGL::EGL
         ${CMAKE_DL_LIBS}
+    )
+    target_compile_options(mmw_core PRIVATE -ffunction-sections -fdata-sections)
+    target_link_options(mmw_core PUBLIC
+        "LINKER:--gc-sections"
+        "LINKER:--as-needed"
     )
 endif()
 
