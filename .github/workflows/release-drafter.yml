@@ -15,5 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: release-drafter/release-drafter@5de93583980a40bd78603b6dfdcda5b4df377b32 # v7.2.0
+        with:
+          # PR イベント時はドラフト作成を無効化して autolabeler のみ動かす。
+          # PR の GITHUB_REF は refs/pull/*/merge で、Releases API は
+          # それを target_commitish として受け付けないため。
+          disable-releaser: ${{ github.event_name == 'pull_request' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
