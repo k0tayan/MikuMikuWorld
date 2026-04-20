@@ -1,8 +1,10 @@
 #pragma once
+#include <cstdint>
+#include <fstream>
+#include <memory>
+#include <numeric>
 #include <string>
 #include <vector>
-#include <fstream>
-#include <numeric>
 
 namespace IO
 {
@@ -49,7 +51,7 @@ namespace IO
 		std::unique_ptr<std::fstream> stream{};
 		std::string openFilename{};
 
-		int getStreamMode(FileMode) const;
+		std::ios_base::openmode getStreamMode(FileMode) const;
 	};
 
 	enum class FileDialogResult : uint8_t

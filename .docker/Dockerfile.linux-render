@@ -1,0 +1,37 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Build toolchain + GLFW X11 / Wayland development headers +
+# headless GL runtime (Mesa llvmpipe via Xvfb) + ffmpeg for muxing.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    ninja-build \
+    git \
+    ca-certificates \
+    pkg-config \
+    libgl-dev \
+    libglu1-mesa-dev \
+    libx11-dev \
+    libxrandr-dev \
+    libxinerama-dev \
+    libxcursor-dev \
+    libxi-dev \
+    libxkbcommon-dev \
+    libwayland-dev \
+    wayland-protocols \
+    extra-cmake-modules \
+    xvfb \
+    libgl1-mesa-dri \
+    libglx-mesa0 \
+    mesa-utils \
+    ffmpeg \
+ && rm -rf /var/lib/apt/lists/*
+
+# Force software rasterisation so OpenGL works without a real GPU.
+ENV LIBGL_ALWAYS_SOFTWARE=1 \
+    GALLIUM_DRIVER=llvmpipe \
+    MESA_GL_VERSION_OVERRIDE=3.3
+
+WORKDIR /workspace

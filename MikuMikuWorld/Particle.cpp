@@ -81,7 +81,7 @@ namespace MikuMikuWorld::Effect
 		{
 			if (burst.cycles == 0)
 			{
-				float cycleCount = std::ceilf((ref.duration - burst.time) / burst.interval) + 1;
+				float cycleCount = std::ceil((ref.duration - burst.time) / burst.interval) + 1;
 				count += cycleCount * burst.count;
 			}
 			else

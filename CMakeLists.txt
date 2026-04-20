@@ -195,6 +195,13 @@ target_compile_definitions(mmw_core PUBLIC
     GL_SILENCE_DEPRECATION
 )
 
+# DirectXMath pulls in <arm_neon.h> on Linux aarch64, which conflicts with
+# libstdc++'s locale/codecvt internals. The editor only uses DirectXMath for
+# small matrix ops so the scalar fallback is fast enough.
+if(NOT APPLE)
+    target_compile_definitions(mmw_core PUBLIC _XM_NO_INTRINSICS_)
+endif()
+
 target_link_libraries(mmw_core PUBLIC
     glfw
     zlibstatic
@@ -216,7 +223,12 @@ if(APPLE)
     )
 else()
     find_package(OpenGL REQUIRED)
-    target_link_libraries(mmw_core PUBLIC OpenGL::GL ${CMAKE_DL_LIBS})
+    find_package(X11 REQUIRED)
+    target_link_libraries(mmw_core PUBLIC
+        OpenGL::GL
+        X11::X11
+        ${CMAKE_DL_LIBS}
+    )
 endif()
 
 # stb_vorbis and glad are third-party C with many warnings; silence them so

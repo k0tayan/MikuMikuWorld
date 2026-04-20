@@ -2,6 +2,7 @@
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "ImGui/imgui.h"
+#include <cmath>
 #include <functional>
 #include "NoteTypes.h"
 
