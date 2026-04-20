@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  release-macos:
     name: Build and release (macOS universal)
     runs-on: macos-14
     steps:
@@ -51,6 +51,88 @@ jobs:
         run: |
           ASSET="${{ runner.temp }}/MikuMikuWorld-${{ github.event.release.tag_name }}-macOS.zip"
           ditto -c -k --sequesterRsrc --keepParent build/Release/MikuMikuWorld.app "$ASSET"
+          echo "ASSET=$ASSET" >> "$GITHUB_ENV"
+
+      - name: Upload asset to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" "$ASSET" \
+            --repo "${{ github.repository }}" \
+            --clobber
+
+  release-linux:
+    name: Build and release (Linux ${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libegl-dev \
+            libgl-dev \
+            libglvnd-dev
+
+      - name: Show toolchain versions
+        run: |
+          lsb_release -a || true
+          cmake --version
+          gcc --version | head -n1
+          uname -m
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: build/_deps
+          key: fetchcontent-linux-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            fetchcontent-linux-${{ matrix.arch }}-
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build mmw-render
+        run: cmake --build build --target mmw-render --parallel
+
+      - name: Verify binary
+        run: |
+          test -x build/mmw-render || { echo "mmw-render missing"; exit 1; }
+          test -d build/res || { echo "res/ not copied"; exit 1; }
+          file build/mmw-render
+          ldd build/mmw-render
+          if ldd build/mmw-render | grep -qi libX11; then
+            echo "FAIL: libX11 was linked; headless build should not depend on X11"
+            exit 1
+          fi
+          # Help path exits 0 without creating a GL context, so it works
+          # on the runner without EGL/Mesa installed for runtime.
+          build/mmw-render --render --help | head -n 5
+
+      - name: Package tarball
+        run: |
+          NAME="MikuMikuWorld-${{ github.event.release.tag_name }}-linux-${{ matrix.arch }}"
+          STAGE="${{ runner.temp }}/$NAME"
+          mkdir -p "$STAGE"
+          cp build/mmw-render "$STAGE/"
+          strip --strip-unneeded "$STAGE/mmw-render"
+          cp -r build/res "$STAGE/"
+          ASSET="${{ runner.temp }}/$NAME.tar.gz"
+          tar -C "${{ runner.temp }}" -czf "$ASSET" "$NAME"
           echo "ASSET=$ASSET" >> "$GITHUB_ENV"
 
       - name: Upload asset to release
