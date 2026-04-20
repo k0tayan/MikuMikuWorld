@@ -25,8 +25,22 @@ version-resolver:
   minor:
     labels: [minor, feat]
   patch:
-    labels: [patch, fix]
+    labels: [patch, fix, bug]
   default: patch
+
+autolabeler:
+  - label: feat
+    title:
+      - '/^feat(\(.*\))?(!)?:/i'
+  - label: bug
+    title:
+      - '/^fix(\(.*\))?(!)?:/i'
+  - label: chore
+    title:
+      - '/^chore(\(.*\))?(!)?:/i'
+  - label: documentation
+    title:
+      - '/^docs(\(.*\))?(!)?:/i'
 
 template: |
   ## Changes
