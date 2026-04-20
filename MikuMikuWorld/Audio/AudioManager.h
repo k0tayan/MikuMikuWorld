@@ -1,9 +1,10 @@
 #pragma once
 #include "Sound.h"
-#include <map>
-#include <vector>
 #include <array>
+#include <cstdint>
+#include <map>
 #include <memory>
+#include <vector>
 
 namespace Audio
 {

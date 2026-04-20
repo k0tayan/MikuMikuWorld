@@ -7,6 +7,7 @@
 #include "Localization.h"
 #include "NoteTypes.h"
 #include "IO.h"
+#include <cstdint>
 #include <vector>
 
 #define APP_NAME "MikuMikuWorld"
@@ -190,36 +191,39 @@ namespace MikuMikuWorld
 			ImGui::NextColumn();
 		}
 
-		// we don't want FlickType::None to appear in the selection
-		template <>
-		static void addSelectProperty<FlickType>(const char* label, FlickType& value, const char* const* items, int count)
+	};
+
+	// FlickType::None is hidden from the dropdown. Defined at namespace scope
+	// because explicit specialisations of a class template member must not
+	// appear inside the class body (gcc rejects that; AppleClang accepts it).
+	template <>
+	inline void UI::addSelectProperty<FlickType>(const char* label, FlickType& value, const char* const* items, int count)
+	{
+		propertyLabel(label);
+
+		std::string id("##");
+		id.append(label);
+
+		std::string_view curr = getString(items[(int)value]);
+		if (!curr.size())
+			curr = items[(int)value];
+
+		if (ImGui::BeginCombo(id.c_str(), curr.data()))
 		{
-			propertyLabel(label);
-
-			std::string id("##");
-			id.append(label);
-
-			std::string_view curr = getString(items[(int)value]);
-			if (!curr.size())
-				curr = items[(int)value];
-
-			if (ImGui::BeginCombo(id.c_str(), curr.data()))
+			for (int i = (int)FlickType::Default; i < count; ++i)
 			{
-				for (int i = (int)FlickType::Default; i < count; ++i)
-				{
-					const bool selected = (int)value == i;
-					std::string_view str = getString(items[i]);
-					if (str.empty())
-						str = items[i];
+				const bool selected = (int)value == i;
+				std::string_view str = getString(items[i]);
+				if (str.empty())
+					str = items[i];
 
-					if (ImGui::Selectable(str.data(), selected))
-						value = (FlickType)i;
-				}
-
-				ImGui::EndCombo();
+				if (ImGui::Selectable(str.data(), selected))
+					value = (FlickType)i;
 			}
 
-			ImGui::NextColumn();
+			ImGui::EndCombo();
 		}
-	};
+
+		ImGui::NextColumn();
+	}
 }

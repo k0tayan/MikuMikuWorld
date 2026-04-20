@@ -63,12 +63,8 @@
 #ifndef _Analysis_assume_
 #define _Analysis_assume_(expr)
 #endif
-#ifndef __in
-#define __in
-#endif
-#ifndef __out
-#define __out
-#endif
-#ifndef __inout
-#define __inout
-#endif
+
+// Do NOT stub __in / __out / __inout. libstdc++ (gcc) uses those identifiers
+// for internal variable names inside <bits/locale_conv.h> and friends; macro
+// expansion would turn them into empty tokens and break unrelated translation
+// units. DirectXMath itself does not reference the old-style SAL annotations.

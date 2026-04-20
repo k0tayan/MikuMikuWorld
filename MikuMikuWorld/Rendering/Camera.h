@@ -18,7 +18,7 @@ namespace MikuMikuWorld
 		DirectX::XMVECTOR getPsotion() const { return position; }
 		void setPosition(DirectX::XMVECTOR pos);
 
-		DirectX::XMVECTOR getRotation() const { return {pitch, yaw, 0.f, 0.f}; }
+		DirectX::XMVECTOR getRotation() const { return DirectX::XMVectorSet(pitch, yaw, 0.f, 0.f); }
 		void setRotation(float yaw, float pitch);
 
 		float getFov() const { return fov; }

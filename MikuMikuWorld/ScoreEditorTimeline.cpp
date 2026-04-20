@@ -1651,7 +1651,7 @@ namespace MikuMikuWorld
 		const float limitY1 = getNoteYPosFromTick(positionToTick(visualOffset));
 
 		auto easeFunc = getEaseFunction(ease);
-		float steps = ease == EaseType::Linear ? 1 : std::max(5.0f, std::ceilf(abs((endY - startY)) / 10));
+		float steps = ease == EaseType::Linear ? 1 : std::max(5.0f, std::ceil(std::abs(endY - startY) / 10));
 
 		Color appliedTint = isGuide ? tint.scaleAlpha(0.67f) : tint;
 

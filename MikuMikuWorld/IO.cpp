@@ -1,8 +1,9 @@
 #include "IO.h"
 #include <algorithm>
-#include <zlib.h>
-#include <sstream>
 #include <cassert>
+#include <cstring>
+#include <sstream>
+#include <zlib.h>
 
 namespace IO
 {

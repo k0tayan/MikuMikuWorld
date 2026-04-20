@@ -1,8 +1,9 @@
 #pragma once
 #include <array>
-#include <string>
-#include <memory>
+#include <cstdint>
 #include <map>
+#include <memory>
+#include <string>
 #include <string_view>
 
 // Already defined somewhere else but Visual Studio gets confused
@@ -84,16 +85,16 @@ namespace Audio
 		
 		uint64_t getCurrentFrame()
 		{
-			uint64_t frame{};
+			ma_uint64 frame{};
 			ma_sound_get_cursor_in_pcm_frames(&source, &frame);
-			return frame;
+			return static_cast<uint64_t>(frame);
 		}
 
 		uint64_t getLengthInFrames()
 		{
-			uint64_t frame{};
+			ma_uint64 frame{};
 			ma_sound_get_length_in_pcm_frames(&source, &frame);
-			return frame;
+			return static_cast<uint64_t>(frame);
 		}
 
 		float getCurrentTime()

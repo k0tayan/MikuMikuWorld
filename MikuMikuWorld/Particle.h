@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 #include <string>
 #include "MathUtils.h"
 #include "MinMax.h"

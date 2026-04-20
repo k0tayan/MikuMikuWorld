@@ -1,9 +1,10 @@
 #pragma once
 #include "NoteTypes.h"
-#include <vector>
+#include <array>
+#include <cstdint>
 #include <string>
 #include <string_view>
-#include <array>
+#include <vector>
 
 namespace MikuMikuWorld
 {

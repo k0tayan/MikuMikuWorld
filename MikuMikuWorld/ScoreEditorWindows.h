@@ -3,6 +3,7 @@
 #include "ScoreEditorTimeline.h"
 #include "Stopwatch.h"
 #include "InputBinding.h"
+#include <cstdint>
 
 namespace MikuMikuWorld
 {
