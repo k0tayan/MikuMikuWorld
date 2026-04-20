@@ -67,6 +67,7 @@ namespace MikuMikuWorld
 			bool disableSE = false;
 			bool dryRun = false;
 			bool hasOverlay = false; bool overlayEnabled = true;
+			bool hasIntroFont = false; std::string introFontPath;
 
 			// Intro (pre-chart) animation
 			bool intro = false;
@@ -110,6 +111,7 @@ namespace MikuMikuWorld
 				"  [--no-se]            Disable note sound effects\n"
 				"  [--no-overlay]       Disable in-frame score/combo overlay\n"
 				"  [--overlay]          Force-enable the overlay (default)\n"
+				"  [--intro-font <path>] Override intro animation font (.ttf/.otf/.ttc/.otc)\n"
 				"  [--intro]            Prepend a 9s pjsekai-style intro (chart/music shift by 9s)\n"
 				"  [--intro-difficulty <easy|normal|hard|expert|master|append>]\n"
 				"  [--intro-extra <text>]       Extra/level text (e.g. Lv.30)\n"
@@ -161,6 +163,7 @@ namespace MikuMikuWorld
 				else if (a == "--no-se") { opt.disableSE = true; }
 				else if (a == "--no-overlay") { opt.hasOverlay = true; opt.overlayEnabled = false; }
 				else if (a == "--overlay") { opt.hasOverlay = true; opt.overlayEnabled = true; }
+				else if (a == "--intro-font") { if (!needs(i, "--intro-font")) return false; opt.hasIntroFont = true; opt.introFontPath = argv[++i]; }
 				else if (a == "--intro") { opt.intro = true; }
 				else if (a == "--intro-difficulty") { if (!needs(i, "--intro-difficulty")) return false; opt.introDifficulty = argv[++i]; }
 				else if (a == "--intro-extra") { if (!needs(i, "--intro-extra")) return false; opt.introExtra = argv[++i]; }
@@ -745,6 +748,7 @@ namespace MikuMikuWorld
 		if (opt.hasEffectsProfile)  config.pvEffectsProfile = opt.effectsProfile;
 		if (opt.hasMirror)          config.pvMirrorScore = opt.mirror;
 		if (opt.hasOverlay)         config.pvOverlayEnabled = opt.overlayEnabled;
+		if (opt.hasIntroFont)       config.pvIntroFontPath = opt.introFontPath;
 
 		Application::loadResources();
 
