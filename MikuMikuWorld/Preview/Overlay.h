@@ -59,7 +59,6 @@ namespace MikuMikuWorld
 		void drawAdditivePass(Renderer* renderer, float vpWidth, float vpHeight);
 		void drawTextPass(Renderer* renderer, float vpWidth, float vpHeight,
 		                  const ScoreContext& context, float chartTime);
-		// テキストパス後に描画してジャケットをカード要素の最前面にする。
 		void drawIntroJacketOverlayPass(Renderer* renderer, float vpWidth, float vpHeight,
 		                                const Jacket& jacket, float chartTime);
 

@@ -498,7 +498,6 @@ namespace MikuMikuWorld
 
 			const auto overlayProjection = Camera::getOffCenterOrthographicProjection(0.f, viewportWidth, viewportHeight, 0.f);
 
-			// Pass 1: RGBA assets (intro card, score bar, combo digits, judgement) with standard alpha blending
 			shader->use();
 			shader->setMatrix4("projection", overlayProjection);
 			renderer->beginBatch();
@@ -508,12 +507,10 @@ namespace MikuMikuWorld
 				overlay.drawAssetPass(renderer, viewportWidth, viewportHeight, currentTime);
 			renderer->endBatch();
 
-			// Pass 2: AP video — rendered additively since the source has a black background.
 			renderer->beginBatch();
 			overlay.drawAdditivePass(renderer, viewportWidth, viewportHeight);
 			renderer->endBatchWithBlending(GL_ONE, GL_ONE, GL_ONE, GL_ONE);
 
-			// Pass 3: R8 font atlas (intro card text)
 			if (textShader)
 			{
 				textShader->use();
@@ -523,7 +520,6 @@ namespace MikuMikuWorld
 				renderer->endBatch();
 			}
 
-			// Pass 4: ジャケットをカード要素 (難易度テキスト等) の上に被せる。
 			shader->use();
 			shader->setMatrix4("projection", overlayProjection);
 			renderer->beginBatch();
