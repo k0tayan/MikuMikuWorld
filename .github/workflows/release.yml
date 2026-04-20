@@ -62,16 +62,8 @@ jobs:
             --clobber
 
   release-linux:
-    name: Build and release (Linux ${{ matrix.arch }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x86_64
-            runner: ubuntu-24.04
-          - arch: aarch64
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
+    name: Build and release (Linux x86_64)
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -99,9 +91,9 @@ jobs:
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: build/_deps
-          key: fetchcontent-linux-${{ matrix.arch }}-${{ hashFiles('CMakeLists.txt') }}
+          key: fetchcontent-linux-x86_64-${{ hashFiles('CMakeLists.txt') }}
           restore-keys: |
-            fetchcontent-linux-${{ matrix.arch }}-
+            fetchcontent-linux-x86_64-
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -125,7 +117,7 @@ jobs:
 
       - name: Package tarball
         run: |
-          NAME="MikuMikuWorld-${{ github.event.release.tag_name }}-linux-${{ matrix.arch }}"
+          NAME="MikuMikuWorld-${{ github.event.release.tag_name }}-linux-x86_64"
           STAGE="${{ runner.temp }}/$NAME"
           mkdir -p "$STAGE"
           cp build/mmw-render "$STAGE/"
