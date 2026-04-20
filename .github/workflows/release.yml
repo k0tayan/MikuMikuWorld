@@ -66,6 +66,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       BUILD_IMAGE: mmw-linux-build:ci
+      RUNNER_IMAGE: mmw-linux-runner:ci
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -80,8 +81,18 @@ jobs:
           file: .docker/Dockerfile.linux-render
           tags: ${{ env.BUILD_IMAGE }}
           load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=build
+          cache-to: type=gha,mode=max,scope=build
+
+      - name: Build runner image
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: .
+          file: .docker/Dockerfile.linux-runner
+          tags: ${{ env.RUNNER_IMAGE }}
+          load: true
+          cache-from: type=gha,scope=runner
+          cache-to: type=gha,mode=max,scope=runner
 
       - name: Show toolchain versions
         run: |
@@ -119,17 +130,22 @@ jobs:
 
       - name: Verify binary
         run: |
-          test -x build/mmw-render || { echo "mmw-render missing"; exit 1; }
-          test -d build/res || { echo "res/ not copied"; exit 1; }
-          file build/mmw-render
-          ldd build/mmw-render
-          if ldd build/mmw-render | grep -qi libX11; then
-            echo "FAIL: libX11 was linked; headless build should not depend on X11"
-            exit 1
-          fi
-          # Help path exits 0 without creating a GL context, so it works
-          # on the runner without EGL/Mesa installed for runtime.
-          build/mmw-render --render --help | head -n 5
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            ${{ env.RUNNER_IMAGE }} \
+            bash -c '
+              set -eo pipefail
+              test -x build/mmw-render || { echo "mmw-render missing"; exit 1; }
+              test -d build/res || { echo "res/ not copied"; exit 1; }
+              file build/mmw-render
+              ldd build/mmw-render
+              if ldd build/mmw-render | grep -qi libX11; then
+                echo "FAIL: libX11 was linked; headless build should not depend on X11"
+                exit 1
+              fi
+              build/mmw-render --render --help | head -n 5
+            '
 
       - name: Package tarball
         run: |

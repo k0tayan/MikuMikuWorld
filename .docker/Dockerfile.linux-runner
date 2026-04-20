@@ -1,0 +1,36 @@
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Runtime-only image for verifying the headless mmw-render binary.
+# Intentionally kept separate from Dockerfile.linux-render (the build
+# toolchain) so CI exercises a realistic install footprint: no
+# build-essential, no *-dev headers. If the binary runs here, a user
+# who unpacks the tarball on a stock Ubuntu install will be able to
+# run it too (modulo libegl1 / mesa being installed).
+#
+# libegl1         : libEGL.so.1 — required at load time because
+#                   mmw_core links OpenGL::EGL as a DT_NEEDED entry.
+# libgl1 /
+# libgl1-mesa-dri : Gallium drivers (swrast / llvmpipe). Not needed
+#                   for --render --help (it exits before GL context
+#                   creation), but required once an actual render
+#                   smoke test is added.
+# file            : used by the CI verify step.
+# ldd is part of libc-bin and is always present.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libegl1 \
+    libgl1 \
+    libgl1-mesa-dri \
+    ca-certificates \
+    file \
+ && rm -rf /var/lib/apt/lists/*
+
+# Force Mesa's software rasteriser so OpenGL works on any machine
+# without a GPU / without DRI device nodes being exposed to the
+# container.
+ENV LIBGL_ALWAYS_SOFTWARE=1 \
+    GALLIUM_DRIVER=llvmpipe \
+    MESA_GL_VERSION_OVERRIDE=3.3
+
+WORKDIR /workspace
