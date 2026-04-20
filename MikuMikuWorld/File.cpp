@@ -14,6 +14,7 @@ namespace IO
 	FileDialogFilter uscFilter{ "Universal Sekai Chart", "*.usc" };
 	FileDialogFilter imageFilter{ "Image Files", "*.jpg;*.jpeg;*.png" };
 	FileDialogFilter audioFilter{ "Audio Files", "*.mp3;*.wav;*.flac;*.ogg" };
+	FileDialogFilter fontFilter{ "Font Files", "*.ttf;*.otf;*.ttc;*.otc" };
 	FileDialogFilter presetFilter{ "Notes Preset", "*.json" };
 	FileDialogFilter allFilter{ "All Files", "*.*" };
 

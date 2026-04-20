@@ -343,12 +343,29 @@ namespace MikuMikuWorld
 		if (context.scorePreviewDrawData.noteSpeed != config.pvNoteSpeed)
 			context.scorePreviewDrawData.calculateDrawData(context.score);
 
+		const std::string defaultFontPath = Application::getAppDir() + "res/fonts/NotoSansCJK-Regular.ttc";
+		auto resolveIntroFont = [&]() -> std::string {
+			const std::string& configured = config.pvIntroFontPath;
+			if (!configured.empty() && IO::File::exists(configured))
+				return configured;
+			return defaultFontPath;
+		};
 		if (!overlayInitAttempted)
 		{
 			overlayInitAttempted = true;
-			overlay.init(Application::getAppDir() + "res/fonts/NotoSansCJK-Regular.ttc",
+			lastIntroFontPath = resolveIntroFont();
+			overlay.init(lastIntroFontPath,
 			             Application::getAppDir() + "res/overlay/",
 			             Application::getUserDataDir() + "overlay_cache/ap");
+		}
+		else
+		{
+			const std::string chosen = resolveIntroFont();
+			if (chosen != lastIntroFontPath)
+			{
+				lastIntroFontPath = chosen;
+				overlay.reloadFont(chosen);
+			}
 		}
 		// Cheap structural signature: note count usually changes when the score is edited.
 		int overlayRevision = (int)context.score.notes.size();

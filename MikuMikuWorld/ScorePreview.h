@@ -46,6 +46,7 @@ namespace MikuMikuWorld
 		bool overlayInitAttempted{ false };
 		bool lastPlayingState{ false };
 		int  lastOverlayScoreRevision{ -1 };
+		std::string lastIntroFontPath;
 
 		/// <summary>
 		/// The camera used to align particles to preview

@@ -120,6 +120,7 @@ namespace MikuMikuWorld
 		int notesSkin;
 		bool pvDrawToolbar;
 		bool pvOverlayEnabled;
+		std::string pvIntroFontPath;
 
 		InputConfiguration input;
 

@@ -71,6 +71,11 @@ namespace MikuMikuWorld
 		return ok;
 	}
 
+	bool Overlay::reloadFont(const std::string& fontPath)
+	{
+		return text.init(fontPath);
+	}
+
 	void Overlay::onScoreChanged(const Score& score)
 	{
 		buildTimeline(score);

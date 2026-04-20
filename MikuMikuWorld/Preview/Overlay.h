@@ -37,6 +37,8 @@ namespace MikuMikuWorld
 		bool init(const std::string& fontPath,
 		          const std::string& overlayDir,
 		          const std::string& videoCacheDir);
+		// Swap the intro/overlay font without recreating the rest of the overlay.
+		bool reloadFont(const std::string& fontPath);
 		bool isInitialized() const { return text.isInitialized(); }
 		bool hasAssetPack() const { return assets.hasCore(); }
 

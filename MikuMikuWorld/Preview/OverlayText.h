@@ -28,6 +28,7 @@ namespace MikuMikuWorld
 		OverlayText& operator=(const OverlayText&) = delete;
 
 		bool init(const std::string& fontPath, float pixelHeight = 64.f);
+		void release();
 		bool isInitialized() const { return initialized; }
 
 		void drawText(Renderer* renderer, const std::string& utf8,
