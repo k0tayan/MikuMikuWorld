@@ -102,6 +102,10 @@ namespace MikuMikuWorld
 
 	void Overlay::buildTimeline(const Score& score)
 	{
+		// ScoreStats::calculateCombo と完全に一致するコンボ／スコア総量になるように組み立てる。
+		// - ガイドホールドは全ノーツ除外
+		// - Hidden 指定の start / end / mid 中継は除外
+		// - ノーマルホールドは長さに応じて 1/8 拍刻みの tick コンボを追加
 		timeline.clear();
 		totalWeight = 0.f;
 		totalCombo = 0;
@@ -110,31 +114,76 @@ namespace MikuMikuWorld
 			return accumulateDuration(tick, TICKS_PER_BEAT, score.tempoChanges);
 		};
 
+		auto weightForTap = [](const Note& note) -> float {
+			const bool crit = note.critical;
+			if (note.friction) return crit ? 0.2f : 0.1f;
+			if (note.isFlick()) return crit ? 2.6f : 1.3f;
+			return crit ? 2.f : 1.f;
+		};
+
+		auto weightForHoldEnd = [](const Note& note) -> float {
+			const bool crit = note.critical;
+			if (note.isFlick()) return crit ? 2.6f : 1.3f;
+			return crit ? 2.f : 1.f;
+		};
+
+		auto pushEntry = [&](float time, float weight) {
+			if (weight <= 0.f) return;
+			timeline.push_back({ time, weight });
+			totalWeight += weight;
+			++totalCombo;
+		};
+
+		// 単独の Tap / Flick / Trace。
 		for (const auto& [id, note] : score.notes)
 		{
-			float w = 0.f;
-			const bool crit = note.critical;
-			switch (note.getType())
-			{
-			case NoteType::Tap:
-				if (note.friction) w = crit ? 0.2f : 0.1f;
-				else if (note.isFlick()) w = crit ? 2.6f : 1.3f;
-				else w = crit ? 2.f : 1.f;
-				break;
-			case NoteType::Hold:
-			case NoteType::HoldEnd:
-				if (note.isFlick()) w = crit ? 2.6f : 1.3f;
-				else w = crit ? 2.f : 1.f;
-				break;
-			case NoteType::HoldMid:
-				w = crit ? 0.2f : 0.1f;
-				break;
-			}
-			if (w <= 0.f) continue;
-			timeline.push_back({ noteTime(note.tick), w });
-			totalWeight += w;
-			++totalCombo;
+			if (note.getType() != NoteType::Tap) continue;
+			pushEntry(noteTime(note.tick), weightForTap(note));
 		}
+
+		// ホールドは ScoreStats::calculateCombo と同じ規則で列挙する。
+		constexpr int halfBeat = TICKS_PER_BEAT / 2;
+		for (const auto& [id, hold] : score.holdNotes)
+		{
+			if (hold.isGuide()) continue;
+
+			const Note& startNote = score.notes.at(id);
+			const Note& endNote = score.notes.at(hold.end);
+
+			if (hold.startType == HoldNoteType::Normal)
+				pushEntry(noteTime(startNote.tick), weightForHoldEnd(startNote));
+
+			for (const auto& step : hold.steps)
+			{
+				if (step.type == HoldStepType::Hidden) continue;
+				const Note& midNote = score.notes.at(step.ID);
+				const bool crit = midNote.critical;
+				pushEntry(noteTime(midNote.tick), crit ? 0.2f : 0.1f);
+			}
+
+			if (hold.endType == HoldNoteType::Normal)
+				pushEntry(noteTime(endNote.tick), weightForHoldEnd(endNote));
+
+			// ScoreStats.cpp:78-93 の 1/8 拍刻み tick 加算を再現。
+			const int startTick = startNote.tick;
+			const int endTick = endNote.tick;
+			int eighthTick = startTick + halfBeat;
+			if (eighthTick % halfBeat)
+				eighthTick -= (eighthTick % halfBeat);
+
+			if (eighthTick == startTick || eighthTick == endTick)
+				continue;
+
+			int endCeil = endTick;
+			if (endCeil % halfBeat)
+				endCeil += halfBeat - (endCeil % halfBeat);
+
+			const bool crit = startNote.critical;
+			const float tickWeight = crit ? 0.2f : 0.1f;
+			for (int t = eighthTick; t < endCeil; t += halfBeat)
+				pushEntry(noteTime(t), tickWeight);
+		}
+
 		std::sort(timeline.begin(), timeline.end(),
 		          [](const ScoredNote& a, const ScoredNote& b) { return a.time < b.time; });
 	}
