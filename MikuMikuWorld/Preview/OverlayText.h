@@ -42,6 +42,10 @@ namespace MikuMikuWorld
 		float measureWidth(const std::string& utf8, float scale);
 		float getLineHeight(float scale) const { return (ascent - descent) * scale; }
 
+		// Greedy word-wrap: breaks preferentially at ASCII/ideographic spaces, and
+		// falls back to per-codepoint breaks (for CJK) when no space fits.
+		std::vector<std::string> wrapLines(const std::string& utf8, float scale, float maxWidth);
+
 		int getAtlasTextureId() const { return static_cast<int>(glTexture); }
 
 	private:

@@ -836,12 +836,23 @@ namespace MikuMikuWorld
 		}
 
 		// .object [17]: title at (-378.5, 324), size 96 × 40%, align=6 (左下)。
+		// 右端 canvas X=1920 付近で切れるのを避けるため折り返す。タイトル左端
+		// (canvas X=581.5) はジャケット右端 (canvas X=543.6) より右にあるため、
+		// 追加行は上方向に伸びるだけでジャケットとは横方向に干渉しない。
 		if (!introData.title.empty())
 		{
 			const float scale = 96.f * 0.40f / 64.f * unit;
 			const float screenX = ox + exoX(-378.5f) * sx;
-			const float screenY = oy + exoY(324.f) * sy - text.getLineHeight(scale);
-			text.drawText(renderer, introData.title, screenX, screenY, scale, white, 122, TextAlign::Left);
+			const float screenBottomY = oy + exoY(324.f) * sy;
+			constexpr float TITLE_RIGHT_MARGIN = 60.f;
+			const float maxLineWidth = (LAYOUT_WIDTH - TITLE_RIGHT_MARGIN - exoX(-378.5f)) * sx;
+			const auto lines = text.wrapLines(introData.title, scale, maxLineWidth);
+			const float lineH = text.getLineHeight(scale);
+			for (size_t li = 0; li < lines.size(); ++li)
+			{
+				const float topY = screenBottomY - lineH * static_cast<float>(lines.size() - li);
+				text.drawText(renderer, lines[li], screenX, topY, scale, white, 122, TextAlign::Left);
+			}
 		}
 
 		// .object [16][18]: description lines.
@@ -868,12 +879,32 @@ namespace MikuMikuWorld
 
 		auto [desc1, desc2] = formatDescription();
 		const float descScale = 27.f / 64.f * unit;
-		text.drawText(renderer, desc1,
-		              ox + exoX(-380.f) * sx, oy + exoY(364.5f) * sy,
-		              descScale, white, 122, TextAlign::Left);
-		text.drawText(renderer, desc2,
-		              ox + exoX(-380.f) * sx, oy + exoY(413.f) * sy,
-		              descScale, white, 122, TextAlign::Left);
+		const float descLineH = text.getLineHeight(descScale);
+		const float descScreenX = ox + exoX(-380.f) * sx;
+		constexpr float DESC_RIGHT_MARGIN = 60.f;
+		const float descMaxW = (LAYOUT_WIDTH - DESC_RIGHT_MARGIN - exoX(-380.f)) * sx;
+
+		const auto desc1Lines = text.wrapLines(desc1, descScale, descMaxW);
+		const float desc1TopY = oy + exoY(364.5f) * sy;
+		for (size_t li = 0; li < desc1Lines.size(); ++li)
+		{
+			text.drawText(renderer, desc1Lines[li], descScreenX,
+			              desc1TopY + descLineH * static_cast<float>(li),
+			              descScale, white, 122, TextAlign::Left);
+		}
+
+		// desc2 は上詰め。desc1 が折り返した分だけ下にずらして重なりを避ける。
+		const auto desc2Lines = text.wrapLines(desc2, descScale, descMaxW);
+		const float desc2PushDown = desc1Lines.size() > 1
+			? descLineH * static_cast<float>(desc1Lines.size() - 1)
+			: 0.f;
+		const float desc2TopY = oy + exoY(413.f) * sy + desc2PushDown;
+		for (size_t li = 0; li < desc2Lines.size(); ++li)
+		{
+			text.drawText(renderer, desc2Lines[li], descScreenX,
+			              desc2TopY + descLineH * static_cast<float>(li),
+			              descScale, white, 122, TextAlign::Left);
+		}
 	}
 
 	namespace

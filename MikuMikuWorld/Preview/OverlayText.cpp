@@ -239,6 +239,118 @@ namespace MikuMikuWorld
 		return width;
 	}
 
+	std::vector<std::string> OverlayText::wrapLines(const std::string& utf8, float scale, float maxWidth)
+	{
+		std::vector<std::string> lines;
+		if (utf8.empty()) return lines;
+		if (!initialized || maxWidth <= 0.f)
+		{
+			lines.push_back(utf8);
+			return lines;
+		}
+
+		struct CP { uint32_t cp; size_t byteStart; size_t byteLen; float advance; };
+		std::vector<CP> cps;
+		{
+			const unsigned char* s = reinterpret_cast<const unsigned char*>(utf8.data());
+			size_t i = 0, n = utf8.size();
+			while (i < n)
+			{
+				unsigned char c = s[i];
+				uint32_t cp = 0;
+				int extra = 0;
+				if (c < 0x80) { cp = c; extra = 0; }
+				else if ((c & 0xE0) == 0xC0) { cp = c & 0x1F; extra = 1; }
+				else if ((c & 0xF0) == 0xE0) { cp = c & 0x0F; extra = 2; }
+				else if ((c & 0xF8) == 0xF0) { cp = c & 0x07; extra = 3; }
+				else { ++i; continue; }
+
+				if (i + (size_t)extra >= n) break;
+				size_t start = i;
+				for (int k = 0; k < extra; ++k)
+				{
+					unsigned char cc = s[i + 1 + k];
+					if ((cc & 0xC0) != 0x80) { cp = '?'; break; }
+					cp = (cp << 6) | (cc & 0x3F);
+				}
+				const Glyph* g = ensureGlyph(cp);
+				float adv = g ? g->advance * scale : 0.f;
+				cps.push_back({ cp, start, (size_t)(1 + extra), adv });
+				i += 1 + extra;
+			}
+		}
+
+		auto isSoftBreak = [](uint32_t cp) {
+			return cp == ' ' || cp == '\t' || cp == 0x3000; // U+3000 IDEOGRAPHIC SPACE
+		};
+
+		size_t i = 0;
+		while (i < cps.size())
+		{
+			// Drop leading whitespace left over from the previous wrap.
+			while (i < cps.size() && isSoftBreak(cps[i].cp)) ++i;
+			if (i >= cps.size()) break;
+
+			const size_t start = i;
+			size_t lastSoftBreak = SIZE_MAX;
+			float w = 0.f;
+			size_t j = start;
+
+			while (j < cps.size())
+			{
+				if (cps[j].cp == '\n') break;
+				const float nextW = w + cps[j].advance;
+				if (w > 0.f && nextW > maxWidth) break;
+				if (j > start && isSoftBreak(cps[j].cp)) lastSoftBreak = j;
+				w = nextW;
+				++j;
+			}
+
+			size_t lineEnd;   // exclusive
+			size_t nextStart;
+			if (j == cps.size())
+			{
+				lineEnd = j;
+				nextStart = j;
+			}
+			else if (cps[j].cp == '\n')
+			{
+				lineEnd = j;
+				nextStart = j + 1;
+			}
+			else if (lastSoftBreak != SIZE_MAX)
+			{
+				lineEnd = lastSoftBreak;
+				nextStart = lastSoftBreak + 1;
+			}
+			else
+			{
+				// No soft break point: force a per-codepoint break, guaranteeing
+				// forward progress even when a single glyph exceeds maxWidth.
+				lineEnd = (j > start) ? j : (start + 1);
+				nextStart = lineEnd;
+			}
+
+			size_t trimmed = lineEnd;
+			while (trimmed > start && isSoftBreak(cps[trimmed - 1].cp)) --trimmed;
+
+			if (trimmed > start)
+			{
+				const size_t bStart = cps[start].byteStart;
+				const size_t bEnd = cps[trimmed - 1].byteStart + cps[trimmed - 1].byteLen;
+				lines.push_back(utf8.substr(bStart, bEnd - bStart));
+			}
+			else
+			{
+				lines.emplace_back();
+			}
+
+			i = nextStart;
+		}
+
+		return lines;
+	}
+
 	void OverlayText::drawSolidRect(Renderer* renderer, float x, float y, float w, float h,
 	                                const Color& tint, int zIndex)
 	{
