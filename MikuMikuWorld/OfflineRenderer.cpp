@@ -69,6 +69,14 @@ namespace MikuMikuWorld
 			bool hasOverlay = false; bool overlayEnabled = true;
 			bool hasIntroFont = false; std::string introFontPath;
 
+			// Encoder overrides. Empty / unset → fall back to legacy defaults
+			// (libx264 -preset medium -crf 18). Useful for HW encoders such
+			// as h264_videotoolbox on Apple Silicon.
+			std::string vcodec;
+			std::string preset;
+			bool hasCrf = false; int crf = 0;
+			std::string bitrate;
+
 			// Intro (pre-chart) animation
 			bool intro = false;
 			std::string introDifficulty = "master";
@@ -123,6 +131,10 @@ namespace MikuMikuWorld
 				"  [--intro-vocal <text>]\n"
 				"  [--intro-chart-author <text>] (defaults to score author)\n"
 				"  [--intro-lang <jp|en>]       Description language (default jp)\n"
+				"  [--vcodec <name>]    Video codec (default libx264; e.g. h264_videotoolbox)\n"
+				"  [--preset <name>]    Encoder preset (default medium for libx264)\n"
+				"  [--crf <N>]          CRF quality (default 18 for libx264; ignored by HW codecs)\n"
+				"  [--bitrate <rate>]   Target bitrate (e.g. 12M); takes precedence over --crf\n"
 				"  [--dry-run]          Load & verify the score, then exit (no rendering)\n");
 		}
 
@@ -175,6 +187,10 @@ namespace MikuMikuWorld
 				else if (a == "--intro-vocal") { if (!needs(i, "--intro-vocal")) return false; opt.introVocal = argv[++i]; }
 				else if (a == "--intro-chart-author") { if (!needs(i, "--intro-chart-author")) return false; opt.introChartAuthor = argv[++i]; }
 				else if (a == "--intro-lang") { if (!needs(i, "--intro-lang")) return false; opt.introLang = argv[++i]; }
+				else if (a == "--vcodec") { if (!needs(i, "--vcodec")) return false; opt.vcodec = argv[++i]; }
+				else if (a == "--preset") { if (!needs(i, "--preset")) return false; opt.preset = argv[++i]; }
+				else if (a == "--crf") { if (!needs(i, "--crf")) return false; opt.hasCrf = true; opt.crf = std::atoi(argv[++i]); }
+				else if (a == "--bitrate") { if (!needs(i, "--bitrate")) return false; opt.bitrate = argv[++i]; }
 				else if (a == "--dry-run") { opt.dryRun = true; }
 				else {
 					std::fprintf(stderr, "Unknown argument: %s\n", a.c_str());
@@ -584,7 +600,32 @@ namespace MikuMikuWorld
 			}
 
 			cmd += " -vf vflip";
-			cmd += " -c:v libx264 -pix_fmt yuv420p -preset medium -crf 18";
+
+			const std::string vcodec = opt.vcodec.empty() ? "libx264" : opt.vcodec;
+			cmd += " -c:v " + vcodec;
+			cmd += " -pix_fmt yuv420p";
+
+			if (!opt.preset.empty())
+				cmd += " -preset " + opt.preset;
+			else if (vcodec == "libx264")
+				cmd += " -preset medium";
+
+			if (!opt.bitrate.empty())
+			{
+				cmd += " -b:v " + opt.bitrate;
+			}
+			else if (opt.hasCrf)
+			{
+				cmd += " -crf " + std::to_string(opt.crf);
+			}
+			else if (vcodec == "libx264")
+			{
+				cmd += " -crf 18";
+			}
+
+			// VideoToolbox: lift the real-time ceiling for offline batch renders.
+			if (vcodec.find("videotoolbox") != std::string::npos)
+				cmd += " -realtime 0";
 
 			// Build audio graph. Both BGM and AP use adelay to land at the right
 			// moment (itsoffset is unreliable when feeding through amix).
