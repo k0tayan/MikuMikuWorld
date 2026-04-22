@@ -119,6 +119,13 @@ namespace MikuMikuWorld
 				if (!obj.contains("midpoints") || !obj["midpoints"].is_array() || obj["midpoints"].size() < 2)
 					continue;
 
+				// USC guides have 8 colors; mmw's data model only distinguishes
+				// critical (yellow) from non-critical. Map yellow to critical so
+				// the preview renders yellow guides as yellow; other colors fall
+				// back to the non-critical (green) base.
+				const bool isCritical =
+					jsonIO::tryGetValue<std::string>(obj, "color", "") == "yellow";
+
 				const auto& midpoints = obj["midpoints"];
 				const size_t count = midpoints.size();
 
@@ -134,6 +141,7 @@ namespace MikuMikuWorld
 					if (i == 0)
 					{
 						Note n(NoteType::Hold, tick, lane, width);
+						n.critical = isCritical;
 						n.ID = nextID++;
 						score.notes[n.ID] = n;
 						hold.start = HoldStep{ n.ID, HoldStepType::Normal, ease };
@@ -141,6 +149,7 @@ namespace MikuMikuWorld
 					else if (i == count - 1)
 					{
 						Note n(NoteType::HoldEnd, tick, lane, width);
+						n.critical = isCritical;
 						n.ID = nextID++;
 						n.parentID = hold.start.ID;
 						score.notes[n.ID] = n;
@@ -149,6 +158,7 @@ namespace MikuMikuWorld
 					else
 					{
 						Note n(NoteType::HoldMid, tick, lane, width);
+						n.critical = isCritical;
 						n.ID = nextID++;
 						n.parentID = hold.start.ID;
 						score.notes[n.ID] = n;
