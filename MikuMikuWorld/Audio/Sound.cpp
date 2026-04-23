@@ -197,11 +197,26 @@ namespace Audio
 
 	void SoundPool::play(float start, float end)
 	{
+		// pjsekai-soundgen-rust の overlay_until 相当: 同一プール内の直前インスタンスを
+		// 新しい発火時刻で打ち切り、同種 SE の自己重畳（連続タップなどで前の SE がフル長
+		// 鳴り続けるケース）を抑制する。EXTENDABLE は extendDuration で既に制御済み。
+		if ((flags & SoundFlags::EXTENDABLE) == 0)
+		{
+			const int poolCount = static_cast<int>(pool.size());
+			const int prevIndex = (currentIndex + poolCount - 1) % poolCount;
+			SoundInstance& prevInstance = pool[prevIndex];
+			if (prevInstance.isPlaying() && start > prevInstance.lastStartTime)
+			{
+				ma_sound_set_stop_time_in_milliseconds(&prevInstance.source, start * 1000);
+				prevInstance.lastEndTime = start;
+			}
+		}
+
 		SoundInstance& instance = pool[currentIndex];
 
 		instance.seek(0);
 		ma_sound_set_start_time_in_milliseconds(&instance.source, start * 1000);
-		
+
 		if (end > -1)
 			ma_sound_set_stop_time_in_milliseconds(&instance.source, end * 1000);
 
