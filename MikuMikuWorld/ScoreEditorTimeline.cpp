@@ -2384,7 +2384,11 @@ namespace MikuMikuWorld
 			if (applyPreroll)
 				time = -prerollSeconds;
 			playStartTime = time;
-			context.audio.seekMusic(time < 0.0f ? 0.0f : time);
+			// Clamp the seek target to `musicOffset` so the audio cursor lands at
+			// file position 0 when playback actually begins (otherwise a non-zero
+			// musicOffset combined with preroll would skip or repeat the lead-in).
+			const float musicOffsetSec = context.workingData.musicOffset / 1000.0f;
+			context.audio.seekMusic(std::max(time, musicOffsetSec));
 			context.audio.playMusic(time);
 			context.audio.setLastPlaybackTime(time);
 			context.audio.syncAudioEngineTimer();

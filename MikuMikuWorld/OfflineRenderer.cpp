@@ -797,9 +797,10 @@ namespace MikuMikuWorld
 		std::fprintf(stderr, "[render] score duration %.3fs, total %.3fs (%d frames @ %d fps)\n",
 			scoreDuration, totalSeconds, totalFrames, opt.fps);
 
-		// Audio offset: score metadata value unless overridden. Intro pushes audio
+		// Audio offset: score metadata value (ms) converted to seconds unless
+		// overridden via --audio-offset (already in seconds). Intro pushes audio
 		// by an additional introOffset seconds so the song lines up with frame 540.
-		float audioOffset = context.workingData.musicOffset;
+		float audioOffset = context.workingData.musicOffset / 1000.0f;
 		if (opt.hasAudioOffset) audioOffset = opt.audioOffset;
 		audioOffset += introOffset;
 
