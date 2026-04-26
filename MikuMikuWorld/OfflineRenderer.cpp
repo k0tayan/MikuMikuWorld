@@ -554,6 +554,25 @@ namespace MikuMikuWorld
 			return writeWavS16Stereo(outWavPath, mix, SE_MIX_SAMPLE_RATE);
 		}
 
+		float queryAudioLengthSeconds(const std::string& audioPath)
+		{
+			if (audioPath.empty() || !IO::File::exists(audioPath))
+				return 0.f;
+			Audio::SoundBuffer buf{};
+			Result r = Audio::decodeAudioFile(audioPath, buf);
+			if (!r.isOk() || buf.sampleRate == 0)
+			{
+				std::fprintf(stderr,
+					"[render] could not query audio length for %s (%s)\n",
+					audioPath.c_str(), r.getMessage().c_str());
+				if (buf.isValid()) buf.dispose();
+				return 0.f;
+			}
+			float seconds = static_cast<float>(buf.frameCount) / static_cast<float>(buf.sampleRate);
+			buf.dispose();
+			return seconds;
+		}
+
 		FILE* spawnFfmpeg(const RenderOptions& opt, float audioOffsetSeconds,
 			const std::string& sePath,
 			const std::string& apAudioPath, float apStartSeconds)
@@ -832,18 +851,27 @@ namespace MikuMikuWorld
 		// Duration
 		const int maxTick = scoreMaxTick(context.score);
 		const float scoreDuration = accumulateDuration(maxTick, TICKS_PER_BEAT, context.score.tempoChanges);
-		const float totalSeconds = scoreDuration + opt.tailSeconds + introOffset;
+
+		const float musicChartStartTime = opt.hasAudioOffset
+			? opt.audioOffset
+			: context.workingData.musicOffset / 1000.0f;
+		const float musicLengthSeconds = queryAudioLengthSeconds(opt.audioPath);
+		const float musicChartEndTime = musicLengthSeconds > 0.f
+			? (musicChartStartTime + musicLengthSeconds)
+			: 0.f;
+		const float effectiveDuration = std::max(scoreDuration, musicChartEndTime);
+
+		const float totalSeconds = effectiveDuration + opt.tailSeconds + introOffset;
 		const int totalFrames = static_cast<int>(std::ceil(totalSeconds * opt.fps));
 
-		std::fprintf(stderr, "[render] score duration %.3fs, total %.3fs (%d frames @ %d fps)\n",
-			scoreDuration, totalSeconds, totalFrames, opt.fps);
+		std::fprintf(stderr,
+			"[render] score duration %.3fs, music end %.3fs (chart time), total %.3fs (%d frames @ %d fps)\n",
+			scoreDuration, musicChartEndTime, totalSeconds, totalFrames, opt.fps);
 
 		// Audio offset: score metadata value (ms) converted to seconds unless
 		// overridden via --audio-offset (already in seconds). Intro pushes audio
 		// by an additional introOffset seconds so the song lines up with frame 540.
-		float audioOffset = context.workingData.musicOffset / 1000.0f;
-		if (opt.hasAudioOffset) audioOffset = opt.audioOffset;
-		audioOffset += introOffset;
+		float audioOffset = musicChartStartTime + introOffset;
 
 		// Sound effects mixdown -> intermediate WAV. Events collected relative to
 		// the chart are shifted into video time by introOffset.
@@ -866,7 +894,10 @@ namespace MikuMikuWorld
 		constexpr float AP_TRIGGER_DELAY = 2.0f;
 		std::string apAudioPath = resourceDir + "res/overlay/ap.mp4";
 		if (!IO::File::exists(apAudioPath)) apAudioPath.clear();
-		const float apStartSec = apAudioPath.empty() ? 0.f : scoreDuration + AP_TRIGGER_DELAY + introOffset;
+		const float apStartSec = apAudioPath.empty() ? 0.f
+			: effectiveDuration + AP_TRIGGER_DELAY + introOffset;
+
+		preview.setMusicEndTimeOverride(musicChartEndTime);
 
 		// ffmpeg
 		FILE* pipe = spawnFfmpeg(opt, audioOffset, sePath, apAudioPath, apStartSec);

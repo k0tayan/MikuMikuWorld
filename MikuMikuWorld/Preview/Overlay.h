@@ -46,6 +46,8 @@ namespace MikuMikuWorld
 		void update(const Score& score, float currentTime, bool isPlaying);
 		void reset();
 
+		void setMusicEndTime(float chartTime) { musicEndTime = chartTime; }
+
 		// Enable the pre-chart intro. `offsetSeconds` must match the delay applied
 		// to music and notes (video time = chart time + offset).
 		void beginIntro(float offsetSeconds, const OverlayIntroData& data);
@@ -86,6 +88,7 @@ namespace MikuMikuWorld
 		// Time of the last note hit. Used to delay the AP takeover so the
 		// post-play moment breathes before the video kicks in.
 		float fullComboTime{ -1.f };
+		float musicEndTime{ 0.f };
 		size_t nextIdx{ 0 };
 		float lastScoreEpoch{ -1.f };
 

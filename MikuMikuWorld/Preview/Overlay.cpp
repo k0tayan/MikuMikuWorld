@@ -234,7 +234,7 @@ namespace MikuMikuWorld
 
 		// Delay AP takeover so the final combo has a moment to breathe.
 		if (fullComboTime >= 0.f && !allPerfectTriggered
-		    && currentTime - fullComboTime >= AP_TRIGGER_DELAY)
+		    && currentTime - std::max(fullComboTime, musicEndTime) >= AP_TRIGGER_DELAY)
 		{
 			allPerfectTriggered = true;
 			allPerfectTimer = 0.f;
