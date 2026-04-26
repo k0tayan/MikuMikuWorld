@@ -11,6 +11,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "Application.h"
@@ -358,6 +359,13 @@ namespace MikuMikuWorld
 			std::vector<SEHoldLoop>& holdLoops)
 		{
 			const auto& notesList = context.scorePreviewDrawData.notesList.getView();
+
+			// 同 tick 上の複数ノートが同じ SE を共有する場合、波形をそのまま重ね合わせると
+			// 振幅が倍になり破裂音になる。ScoreEditorTimeline::updateNoteSE と同じく
+			// (tick, SE) で重複除去する。
+			std::unordered_set<std::string> seenOneShots;
+			seenOneShots.reserve(notesList.size());
+
 			for (const auto& dn : notesList)
 			{
 				auto it = context.score.notes.find(dn.refID);
@@ -382,7 +390,11 @@ namespace MikuMikuWorld
 				{
 					std::string_view se = getNoteSE(note, context.score);
 					if (!se.empty())
-						oneshots.push_back({ dn.time, std::string(se) });
+					{
+						std::string key = std::to_string(note.tick) + "-" + std::string(se);
+						if (seenOneShots.insert(std::move(key)).second)
+							oneshots.push_back({ dn.time, std::string(se) });
+					}
 				}
 
 				if (note.getType() == NoteType::Hold)
