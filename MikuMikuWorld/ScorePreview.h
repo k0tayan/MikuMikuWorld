@@ -47,6 +47,8 @@ namespace MikuMikuWorld
 		bool lastPlayingState{ false };
 		int  lastOverlayScoreRevision{ -1 };
 		std::string lastIntroFontPath;
+		// 負値なら context.audio から取得、それ以外は上書き値を使う。
+		float musicEndTimeOverride{ -1.f };
 
 		/// <summary>
 		/// The camera used to align particles to preview
@@ -102,5 +104,7 @@ namespace MikuMikuWorld
 		// Offline-render hook: configure the pre-chart intro animation. Must be
 		// called before renderToFramebuffer so overlay.init() has already run.
 		void configureIntro(float offsetSeconds, const OverlayIntroData& data);
+
+		void setMusicEndTimeOverride(float chartTime) { musicEndTimeOverride = chartTime; }
 	};
 }

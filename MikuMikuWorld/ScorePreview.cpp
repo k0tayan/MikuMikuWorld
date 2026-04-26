@@ -491,6 +491,10 @@ namespace MikuMikuWorld
 
 		if (config.pvOverlayEnabled && overlay.isInitialized())
 		{
+			const float musicEndTime = (musicEndTimeOverride >= 0.f)
+				? musicEndTimeOverride
+				: context.audio.getMusicEndTime();
+			overlay.setMusicEndTime(musicEndTime);
 			overlay.update(context.score, currentTime, isPlaying);
 
 			static int textShaderId = ResourceManager::getShader("text");
