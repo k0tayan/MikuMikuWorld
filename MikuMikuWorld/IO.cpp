@@ -83,8 +83,11 @@ namespace IO
 		if (line.empty())
 			return line;
 
-		size_t start = line.find_first_not_of(" ");
-		size_t end = line.find_last_not_of(" ");
+		constexpr const char* whitespace = " \t\r\n";
+		size_t start = line.find_first_not_of(whitespace);
+		if (start == std::string::npos)
+			return {};
+		size_t end = line.find_last_not_of(whitespace);
 
 		return line.substr(start, end - start + 1);
 	}
