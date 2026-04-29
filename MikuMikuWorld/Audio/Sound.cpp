@@ -219,6 +219,11 @@ namespace Audio
 
 		if (end > -1)
 			ma_sound_set_stop_time_in_milliseconds(&instance.source, end * 1000);
+		else
+			// 直前の truncation で書き込まれた stop_time が残っていると、ラップアラウンドで
+			// このインスタンスを再利用したとき start_time > stop_time となり無音になる。
+			// end 指定なしの再利用時は stop_time を未スケジュール状態に戻す。
+			ma_sound_set_stop_time_in_pcm_frames(&instance.source, ~(ma_uint64)0);
 
 		instance.play();
 		instance.lastStartTime = start;
